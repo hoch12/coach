@@ -79,6 +79,7 @@ export interface NutritionPlan {
   carbs: number;
   fat: number;
   meals: { name: string; description: string; calories: number }[];
+  tips: string[];
 }
 
 export interface LifestylePlan {
@@ -87,6 +88,9 @@ export interface LifestylePlan {
   motivationStrategy: string;
   disciplineTips: string[];
   mindsetShift: string;
+  stressManagement: string[];
+  recoveryProtocol: string[];
+  weeklyCheckpoints: string[];
 }
 
 export interface GeneratedPlan {
