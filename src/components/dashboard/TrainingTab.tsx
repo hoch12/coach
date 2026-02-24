@@ -1,0 +1,37 @@
+import { GeneratedPlan } from "@/types/onboarding";
+
+interface Props {
+  plan: GeneratedPlan;
+}
+
+export function TrainingTab({ plan }: Props) {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-lg font-display font-semibold mb-4">Weekly Training Split</h2>
+      <div className="grid gap-4">
+        {plan.trainingSplit.map((day) => (
+          <div key={day.day} className="glass-card rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 bg-primary/5 border-b border-border/50">
+              <div>
+                <span className="font-display font-semibold text-sm">{day.day}</span>
+                <span className="ml-3 text-xs text-primary font-medium">{day.focus}</span>
+              </div>
+              <span className="text-xs text-muted-foreground">{day.exercises.length} exercises</span>
+            </div>
+            <div className="divide-y divide-border/30">
+              {day.exercises.map((ex, i) => (
+                <div key={i} className="flex items-center justify-between px-5 py-3">
+                  <span className="text-sm font-medium">{ex.name}</span>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                    <span>{ex.sets} × {ex.reps}</span>
+                    <span className="hidden sm:inline">Rest: {ex.rest}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
