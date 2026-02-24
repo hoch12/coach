@@ -1,4 +1,5 @@
 import { GeneratedPlan } from "@/types/onboarding";
+import { Lightbulb } from "lucide-react";
 
 interface Props {
   plan: GeneratedPlan;
@@ -10,9 +11,15 @@ export function NutritionTab({ plan }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Calorie target */}
+      <div className="glass-card rounded-xl p-5 text-center">
+        <p className="text-sm text-muted-foreground mb-1">Daily Calorie Target</p>
+        <p className="text-3xl font-display font-bold text-primary">{nutrition.calories} kcal</p>
+      </div>
+
       {/* Macro overview */}
       <div>
-        <h2 className="text-lg font-display font-semibold mb-4">Daily Targets</h2>
+        <h2 className="text-lg font-display font-semibold mb-4">Macro Breakdown</h2>
         <div className="grid grid-cols-3 gap-3">
           <MacroCard label="Protein" grams={nutrition.protein} color="bg-primary" percent={Math.round((nutrition.protein / totalMacroGrams) * 100)} />
           <MacroCard label="Carbs" grams={nutrition.carbs} color="bg-success" percent={Math.round((nutrition.carbs / totalMacroGrams) * 100)} />
@@ -52,6 +59,24 @@ export function NutritionTab({ plan }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Nutrition Tips */}
+      {nutrition.tips && nutrition.tips.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Lightbulb className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-display font-semibold">Personalized Tips</h2>
+          </div>
+          <div className="glass-card rounded-xl p-5 space-y-3">
+            {nutrition.tips.map((tip, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <span className="mt-0.5 text-primary">•</span>
+                <p className="text-sm text-muted-foreground">{tip}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
