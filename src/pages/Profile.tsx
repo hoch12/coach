@@ -23,7 +23,7 @@ const Profile = () => {
 
     const fetchProfile = async () => {
         try {
-            const res = await fetch("/api/profile", {
+            const res = await fetch(getApiUrl("/api/profile"), {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             const data = await res.json();
@@ -41,7 +41,7 @@ const Profile = () => {
         try {
             const updated = { ...profile, ...editForm };
             // Save updated profile
-            await fetch("/api/profile", {
+            await fetch(getApiUrl("/api/profile"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -54,7 +54,7 @@ const Profile = () => {
             const newPlan = generatePlan(updated as OnboardingData);
 
             // Save new plan to backend
-            await fetch("/api/plan", {
+            await fetch(getApiUrl("/api/plan"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -85,7 +85,7 @@ const Profile = () => {
             return;
         }
         try {
-            const res = await fetch("/api/auth/change-password", {
+            const res = await fetch(getApiUrl("/api/auth/change-password"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

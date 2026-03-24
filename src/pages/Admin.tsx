@@ -211,6 +211,10 @@ const AdminPanel = () => {
                             <Users className="h-5 w-5 text-accent" />
                             <span className="font-semibold text-accent">Admin Mode enabled</span>
                         </div>
+                        <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} className="text-muted-foreground hover:bg-secondary">
+                            <User className="h-4 w-4 mr-2" />
+                            My Profile
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={() => { logout(); navigate("/login"); }} className="text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors">
                             <LogOut className="h-4 w-4 mr-2" />
                             Logout

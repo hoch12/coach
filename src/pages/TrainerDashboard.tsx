@@ -121,7 +121,7 @@ export default function TrainerDashboard() {
     return (
         <div className="min-h-screen bg-background flex">
             {/* Sidebar */}
-            <aside className="hidden md:flex flex-col w-64 border-r border-border/50 bg-card/50">
+            <aside className="hidden md:flex flex-col w-64 border-r border-border/50 bg-card/50 h-screen sticky top-0">
                 <div className="p-5 border-b border-border/50 flex items-center gap-2">
                     <Dumbbell className="h-6 w-6 text-primary" />
                     <span className="font-display font-bold text-lg">Coach-E</span>
@@ -139,8 +139,11 @@ export default function TrainerDashboard() {
                         </button>
                     ))}
                 </nav>
-                <div className="p-3 border-t border-border/50">
-                    <Button variant="ghost" className="w-full justify-start text-destructive" onClick={() => { logout(); navigate("/login"); }}>
+                <div className="p-3 border-t border-border/50 space-y-1">
+                    <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" onClick={() => navigate("/profile")}>
+                        <User className="h-4 w-4 mr-2" /> My Profile
+                    </Button>
+                    <Button variant="ghost" className="w-full justify-start text-destructive hover:bg-destructive/10 transition-colors" onClick={() => { logout(); navigate("/login"); }}>
                         <LogOut className="h-4 w-4 mr-2" /> Sign Out
                     </Button>
                 </div>

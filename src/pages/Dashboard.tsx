@@ -95,7 +95,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-border/50 bg-card/50">
+      <aside className="hidden md:flex flex-col w-64 border-r border-border/50 bg-card/50 h-screen sticky top-0">
         <div className="p-5 border-b border-border/50">
           <div className="flex items-center gap-2">
             <Dumbbell className="h-6 w-6 text-primary" />
