@@ -11,8 +11,14 @@ node_modules
 dist
 dist-ssr
 *.local
+# Databases
+*.sqlite
+database.sqlite
 
-# Editor directories and files
+# Office temporary files
+~$*
+*.docx
+
 .vscode/*
 !.vscode/extensions.json
 .idea
