@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Dumbbell, Target, Utensils, Brain, ChevronRight, Flame } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import heroImage from "@/assets/hero-fitness.jpg";
 
 const features = [
@@ -29,6 +30,7 @@ const features = [
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
@@ -54,9 +56,22 @@ const Index = () => {
               FitForge
             </span>
           </div>
-          <Button variant="heroOutline" size="sm" onClick={() => navigate("/onboarding")}>
-            Get Started
-          </Button>
+          <div className="flex items-center gap-3">
+            {user ? (
+              <Button variant="heroOutline" size="sm" onClick={() => navigate("/dashboard")}>
+                Go to Dashboard
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => navigate("/login")} className="text-foreground hover:bg-secondary">
+                  Login
+                </Button>
+                <Button variant="heroOutline" size="sm" onClick={() => navigate("/register")}>
+                  Get Started
+                </Button>
+              </>
+            )}
+          </div>
         </header>
 
         {/* Hero content */}
@@ -78,8 +93,8 @@ const Index = () => {
               nutrition, and lifestyle plans built on real experience.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Button variant="hero" size="xl" onClick={() => navigate("/onboarding")}>
-                Start Your Plan
+              <Button variant="hero" size="xl" onClick={() => navigate(user ? "/dashboard" : "/register")}>
+                {user ? "Go to Dashboard" : "Start Your Plan"}
                 <ChevronRight className="ml-1 h-5 w-5" />
               </Button>
               <Button variant="heroOutline" size="xl" onClick={() => {
@@ -152,8 +167,8 @@ const Index = () => {
           <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
             Complete a detailed onboarding and get your personalized plan in minutes. No credit card. No catches.
           </p>
-          <Button variant="hero" size="xl" onClick={() => navigate("/onboarding")}>
-            Get Your Free Plan
+          <Button variant="hero" size="xl" onClick={() => navigate(user ? "/dashboard" : "/register")}>
+            {user ? "Go to Dashboard" : "Get Your Free Plan"}
             <ChevronRight className="ml-1 h-5 w-5" />
           </Button>
         </motion.div>

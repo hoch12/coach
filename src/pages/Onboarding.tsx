@@ -11,6 +11,10 @@ import { StepLifestyle } from "@/components/onboarding/StepLifestyle";
 import { StepNutrition } from "@/components/onboarding/StepNutrition";
 import { StepPlanStyle } from "@/components/onboarding/StepPlanStyle";
 import { generatePlan } from "@/lib/planGenerator";
+import { validateStepData } from "@/types/onboarding";
+import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
 const STEPS = [
   { id: "personal", title: "Personal Data", subtitle: "Tell us about yourself" },
@@ -23,20 +27,111 @@ const STEPS = [
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
-  const [data, setData] = useState<OnboardingData>(defaultOnboardingData);
+  const { token, user } = useAuth();
+
+  useEffect(() => {
+    if (user && (user.role === 'admin' || user.role === 'trainer')) {
+      navigate(user.role === 'admin' ? '/admin' : '/trainer');
+    }
+  }, [user, navigate]);
+
+  const [step, setStep] = useState(() => {
+    const saved = localStorage.getItem("fitforge-onboarding-step");
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [data, setData] = useState<OnboardingData>(() => {
+    const saved = localStorage.getItem("fitforge-onboarding-data");
+    return saved ? JSON.parse(saved) : defaultOnboardingData;
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load existing profile from backend on mount if we haven't modified local data yet
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch("/api/profile", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const profileData = await res.json();
+          if (profileData && profileData.age) {
+            // merge data from API with default
+            setData(prev => ({ ...defaultOnboardingData, ...profileData, ...prev }));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to fetch profile");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProfile();
+  }, [token]);
+
+  // Save changes to localStorage
+  useEffect(() => {
+    localStorage.setItem("fitforge-onboarding-step", step.toString());
+  }, [step]);
+
+  useEffect(() => {
+    localStorage.setItem("fitforge-onboarding-data", JSON.stringify(data));
+  }, [data]);
 
   const updateData = (partial: Partial<OnboardingData>) => {
     setData((prev) => ({ ...prev, ...partial }));
   };
 
-  const handleFinish = () => {
-    const plan = generatePlan(data);
-    // Store in localStorage for the dashboard
-    localStorage.setItem("fitforge-onboarding", JSON.stringify(data));
+  const handleNext = () => {
+    const validation = validateStepData(step, data);
+    if (!validation.success) {
+      toast.error(validation.message);
+      return;
+    }
+    setStep(step + 1);
+  };
+
+  const handleFinish = async () => {
+    const validation = validateStepData(step, data);
+    if (!validation.success) {
+      toast.error(validation.message);
+      return;
+    }
+
+    const finalData = { ...data, appVersion: "1.3.0" };
+    const plan = generatePlan(finalData);
+
+    // Save to our backend
+    try {
+      await fetch("/api/profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(finalData)
+      });
+
+      await fetch("/api/plan", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ plan_data: plan })
+      });
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to save plan entirely, proceeding locally.");
+    }
+
+    // Store in localStorage for immediate visual sync if necessary
+    localStorage.removeItem("fitforge-onboarding-step");
+    localStorage.removeItem("fitforge-onboarding-data");
     localStorage.setItem("fitforge-plan", JSON.stringify(plan));
     navigate("/dashboard");
   };
+
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-background"><p>Loading your data...</p></div>;
 
   const canNext = step < STEPS.length - 1;
   const canPrev = step > 0;
@@ -120,7 +215,7 @@ const Onboarding = () => {
           </Button>
 
           {canNext ? (
-            <Button variant="hero" onClick={() => setStep(step + 1)}>
+            <Button variant="hero" onClick={handleNext}>
               Continue
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>

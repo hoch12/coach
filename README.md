@@ -1,73 +1,38 @@
-# Welcome to your Lovable project
+# Coach-E
 
-## Project info
+A highly personalized, aesthetic fitness and nutrition coaching platform for gyms and personal trainers.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Architecture
+The application is a full stack web application utilizing:
+- **Frontend**: Vite, React, TypeScript, Tailwind CSS, Shadcn UI, Framer Motion
+- **Backend**: Node.js, Express, `better-sqlite3`, JSON Web Tokens (JWT)
 
-## How can I edit this code?
+## Getting Started
 
-There are several ways of editing your application.
+### Prerequisites
+Make sure you have Node.js (v18+) installed.
 
-**Use Lovable**
+### Installation
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
+1. Install all dependencies for both frontend and backend:
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+npm install
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+2. Start the development server (runs both Vite and Express concurrently):
+```sh
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at `http://localhost:8080`, and the backend API is proxied automatically.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### Features
+- **Authentication**: Secure login, registration, and protected routing.
+- **Multi-Role System**: Admin, Trainer, and Client roles with dedicated dashboards.
+- **Admin Dashboard**: `/admin` area to create trainer accounts, assign clients to trainers, and manage users.
+- **Trainer Dashboard**: `/trainer` area to manage clients, view their plans, handle bookings and messages.
+- **Profile**: Edit your answers and base statistics.
+- **Personalized Onboarding**: Form with multi-select components for granular data gathering.
+- **Dynamic Plan Generation**: Plans adjust based on exact answers including dietary extremes, specific injuries, and exact allergies.
+- **Session Booking**: Clients can book training sessions; trainers approve or decline them.
+- **Messaging**: Direct Client-Trainer messaging system.

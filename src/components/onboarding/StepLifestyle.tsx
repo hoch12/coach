@@ -17,11 +17,10 @@ const selectOptions = (
       <button
         key={item.id}
         onClick={() => onSelect(item.id)}
-        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-          value === item.id
-            ? "bg-primary/10 border-primary text-foreground"
-            : "bg-secondary border-border text-secondary-foreground hover:border-primary/40"
-        }`}
+        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${value === item.id
+          ? "bg-primary/10 border-primary text-foreground"
+          : "bg-secondary border-border text-secondary-foreground hover:border-primary/40"
+          }`}
       >
         {item.label}
       </button>
@@ -32,6 +31,35 @@ const selectOptions = (
 export function StepLifestyle({ data, onChange }: Props) {
   return (
     <div className="space-y-7">
+      {/* Training Frequency */}
+      <div className="space-y-3">
+        <Label>Training Frequency</Label>
+        {selectOptions(
+          [
+            { id: "1-2 days", label: "1-2 Days / Week" },
+            { id: "3-4 days", label: "3-4 Days / Week" },
+            { id: "5-6 days", label: "5-6 Days / Week" },
+          ],
+          data.trainingFrequency,
+          (id) => onChange({ trainingFrequency: id })
+        )}
+      </div>
+
+      {/* Training Duration */}
+      <div className="space-y-3">
+        <Label>Preferred Workout Duration</Label>
+        {selectOptions(
+          [
+            { id: "under-30", label: "Under 30 mins" },
+            { id: "30-45", label: "30-45 mins" },
+            { id: "45-60", label: "45-60 mins" },
+            { id: "over-60", label: "60+ mins" },
+          ],
+          data.trainingDuration,
+          (id) => onChange({ trainingDuration: id })
+        )}
+      </div>
+
       {/* Discipline slider */}
       <div className="space-y-3">
         <div className="flex justify-between">
@@ -91,6 +119,16 @@ export function StepLifestyle({ data, onChange }: Props) {
           [{ id: "low", label: "Low" }, { id: "moderate", label: "Moderate" }, { id: "high", label: "High" }],
           data.stressLevel,
           (id) => onChange({ stressLevel: id })
+        )}
+      </div>
+
+      {/* Proactivity */}
+      <div className="space-y-3">
+        <Label>Proactivity Level</Label>
+        {selectOptions(
+          [{ id: "low", label: "Low" }, { id: "moderate", label: "Moderate" }, { id: "high", label: "High" }],
+          data.proactivity,
+          (id) => onChange({ proactivity: id })
         )}
       </div>
 

@@ -42,37 +42,9 @@ export function generateTrainingSplit(data: OnboardingData): TrainingDay[] {
 
 /** Determine training frequency from multiple factors */
 function determineFrequency(data: OnboardingData): number {
-  let days = 3;
-
-  // Base from fitness level
-  if (data.fitnessLevel === "intermediate") days = 4;
-  if (data.fitnessLevel === "advanced") days = 5;
-
-  // Time constraints reduce frequency
-  if (data.obstacles.includes("lack-of-time")) days = Math.max(2, days - 1);
-  if (data.obstacles.includes("inconsistent-routine")) days = Math.max(2, days - 1);
-
-  // Time flexibility increases it
-  if (data.advantages.includes("time-flexibility") && days < 5) days += 1;
-
-  // High stress or poor sleep → less volume
-  if (data.stressLevel === "high" && days > 3) days -= 1;
-  if (data.sleepQuality === "poor" && days > 3) days -= 1;
-
-  // Age adjustments for recovery
-  const age = parseInt(data.age) || 25;
-  if (age > 50 && days > 4) days = 4;
-  if (age > 60 && days > 3) days = 3;
-
-  // Lifestyle change / general fitness don't need high frequency
-  if (
-    data.fitnessGoals.length === 1 &&
-    (data.fitnessGoals.includes("lifestyle-change") || data.fitnessGoals.includes("general-fitness"))
-  ) {
-    days = Math.min(days, 3);
-  }
-
-  return Math.max(2, Math.min(6, days));
+  if (data.trainingFrequency === "1-2 days") return 2;
+  if (data.trainingFrequency === "5-6 days") return 6;
+  return 4; // default for 3-4 days
 }
 
 interface TrainingParams {
@@ -86,11 +58,29 @@ interface TrainingParams {
 
 function determineTrainingParams(data: OnboardingData): TrainingParams {
   const level = data.fitnessLevel;
-  const goals = data.fitnessGoals;
-  const isStrength = goals.includes("strength");
-  const isMuscle = goals.includes("muscle-gain");
-  const isFatLoss = goals.includes("fat-loss");
-  const isRecomp = goals.includes("recomposition");
+  const goals = data.fitnessGoals || [];
+  const isFatLossRaw = goals.includes("fat-loss");
+  const isMuscleRaw = goals.includes("muscle-gain");
+
+  // Determine if underweight and shouldn't be doing fat-loss or recomp
+  const weight = parseFloat(data.weight) || 75;
+  const height = parseFloat(data.height) || 175;
+  const bmi = weight / ((height / 100) ** 2);
+  const isUnderweight = bmi < 18.5;
+
+  let isRecomp = goals.includes("recomposition") || (isFatLossRaw && isMuscleRaw);
+  let isFatLoss = isFatLossRaw && !isRecomp;
+  let isMuscle = isMuscleRaw && !isRecomp;
+  let isStrength = goals.includes("strength") && !isRecomp;
+
+  // Force muscle-gain if underweight to ensure they focus on building mass
+  if (isUnderweight) {
+    isRecomp = false;
+    isFatLoss = false;
+    isMuscle = true;
+    // Strength can stay true if they selected it, but muscle is primary
+    if (goals.includes("strength")) isStrength = true;
+  }
 
   let setsPerExercise = level === "beginner" ? 3 : level === "intermediate" ? 3 : 4;
 
@@ -182,57 +172,95 @@ function selectExercisePool(data: OnboardingData): ExercisePool {
   const hasGym = data.advantages.includes("gym-access");
   const hasHome = data.advantages.includes("home-equipment");
   const limitations = data.healthLimitations.toLowerCase();
-  const hasBackIssue = limitations.includes("back") || limitations.includes("spine");
-  const hasKneeIssue = limitations.includes("knee");
-  const hasShoulderIssue = limitations.includes("shoulder");
+
+  const hasBackIssue = limitations.includes("lower-back") || limitations.includes("back") || limitations.includes("spine") || limitations.includes("zád") || limitations.includes("zad") || limitations.includes("páteř");
+  const hasKneeIssue = limitations.includes("knee-issues") || limitations.includes("missing-knee") || limitations.includes("knee") || limitations.includes("kolen") || limitations.includes("noh");
+  const hasMissingKnee = limitations.includes("missing-knee");
+  const hasShoulderIssue = limitations.includes("shoulder-issues") || limitations.includes("shoulder") || limitations.includes("ramen");
+
+  const hasNeckIssue = limitations.includes("neck-pain") || limitations.includes("neck");
+  const hasWristIssue = limitations.includes("wrist-issues") || limitations.includes("wrist");
+  const hasElbowIssue = limitations.includes("elbow-issues") || limitations.includes("elbow");
+  const hasHipIssue = limitations.includes("hip-issues") || limitations.includes("hip");
+  const hasAsthma = limitations.includes("asthma");
+
+  const hasGenericIssue = limitations.length > 0 && limitations !== "none" && !hasBackIssue && !hasKneeIssue && !hasShoulderIssue && !hasMissingKnee && !hasNeckIssue && !hasWristIssue && !hasElbowIssue && !hasHipIssue;
+  const modPrefix = hasGenericIssue ? `[Mod: ${data.healthLimitations}] ` : "";
+
+  // Helper to apply generic mod to heavy compound lifts
+  const addMod = (name: string) => modPrefix + name;
 
   // Base pool depends on equipment
   if (hasGym) {
     return {
-      squat: hasKneeIssue
-        ? ["Leg Press (limited ROM)", "Box Squat", "Wall Sit"]
-        : ["Barbell Squat", "Front Squat", "Goblet Squat", "Hack Squat"],
-      hinge: hasBackIssue
+      squat: hasMissingKnee
+        ? ["Seated Leg Extension (Single Leg)", "Leg Press (Single Leg)", "Smith Machine Split Squat (Assisted)"]
+        : hasKneeIssue
+          ? ["Leg Press (limited ROM)", "Box Squat", "Wall Sit"]
+          : hasHipIssue
+            ? ["Leg Press", "Leg Extension", "Wall Sit"]
+            : hasWristIssue
+              ? [addMod("Barbell Squat"), "Goblet Squat (Kettlebell)", "Hack Squat"]
+              : [addMod("Barbell Squat"), "Front Squat", "Goblet Squat", "Hack Squat"],
+      hinge: hasBackIssue || hasHipIssue
         ? ["Cable Pull-Through", "Hip Thrust", "Glute Bridge"]
-        : ["Romanian Deadlift", "Conventional Deadlift", "Trap Bar Deadlift"],
+        : [addMod("Romanian Deadlift"), "Conventional Deadlift", "Trap Bar Deadlift"],
       horizontalPush: hasShoulderIssue
         ? ["Floor Press", "Chest Press Machine", "Push-Ups"]
-        : ["Bench Press", "Incline Dumbbell Press", "Dumbbell Bench Press"],
+        : hasWristIssue
+          ? ["Dumbbell Bench Press", "Machine Chest Press", "Pec Deck"]
+          : [addMod("Bench Press"), "Incline Dumbbell Press", "Dumbbell Bench Press"],
       verticalPush: hasShoulderIssue
         ? ["Landmine Press", "Neutral Grip DB Press", "High Incline Press"]
-        : ["Overhead Press", "Arnold Press", "Seated DB Press"],
-      horizontalPull: ["Barbell Row", "Cable Row", "Dumbbell Row", "Chest-Supported Row"],
+        : hasNeckIssue
+          ? ["Seated DB Press", "Machine Shoulder Press"]
+          : [addMod("Overhead Press"), "Arnold Press", "Seated DB Press"],
+      horizontalPull: hasElbowIssue
+        ? ["Light Cable Row", "Chest-Supported Machine Row"]
+        : ["Barbell Row", "Cable Row", "Dumbbell Row", "Chest-Supported Row"],
       verticalPull: hasShoulderIssue
         ? ["Neutral Grip Lat Pulldown", "Cable Pullover"]
-        : ["Pull-Ups", "Lat Pulldown", "Chin-Ups"],
-      legs: hasKneeIssue
-        ? ["Hip Thrust", "Glute Kickback", "Calf Raises"]
-        : ["Walking Lunges", "Bulgarian Split Squat", "Leg Press", "Step-Ups"],
-      arms: ["Barbell Curls", "Tricep Pushdowns", "Hammer Curls", "Overhead Tricep Extension", "Cable Curls"],
-      core: hasBackIssue
+        : hasElbowIssue
+          ? ["Straight Arm Pulldown", "Light Pullover"]
+          : ["Pull-Ups", "Lat Pulldown", "Chin-Ups"],
+      legs: hasMissingKnee
+        ? ["Single Leg Curl", "Single Leg Extension", "Seated Calf Raise (Single Leg)"]
+        : hasKneeIssue || hasHipIssue
+          ? ["Hip Thrust", "Glute Kickback", "Calf Raises"]
+          : ["Walking Lunges", "Bulgarian Split Squat", "Leg Press", "Step-Ups"],
+      arms: hasElbowIssue
+        ? ["Light Cable Curls", "Light Tricep Pushdowns", "Concentration Curls"]
+        : ["Barbell Curls", "Tricep Pushdowns", "Hammer Curls", "Overhead Tricep Extension", "Cable Curls"],
+      core: hasBackIssue || hasNeckIssue
         ? ["Dead Bug", "Bird Dog", "Pallof Press", "McGill Curl-Up"]
         : ["Hanging Leg Raises", "Ab Wheel Rollout", "Cable Crunches", "Plank"],
-      posterior: ["Face Pulls", "Rear Delt Flyes", "Band Pull-Aparts", "Lateral Raises"],
+      posterior: hasNeckIssue
+        ? ["Band Pull-Aparts", "Rear Delt Machine"]
+        : ["Face Pulls", "Rear Delt Flyes", "Band Pull-Aparts", "Lateral Raises"],
     };
   } else if (hasHome) {
     return {
-      squat: hasKneeIssue
-        ? ["Wall Sit", "Partial Bodyweight Squat"]
-        : ["Goblet Squat", "Bodyweight Squat", "Pistol Squat Progression"],
+      squat: hasMissingKnee
+        ? ["Assisted Pistol Squat (Chair)", "Single Leg Step-Ups", "Wall Sit (Single Leg)"]
+        : hasKneeIssue
+          ? ["Wall Sit", "Partial Bodyweight Squat"]
+          : [addMod("Goblet Squat"), "Bodyweight Squat", "Pistol Squat Progression"],
       hinge: hasBackIssue
         ? ["Glute Bridge", "Single Leg Glute Bridge"]
-        : ["Dumbbell RDL", "Single Leg Deadlift", "Good Mornings"],
+        : [addMod("Dumbbell RDL"), "Single Leg Deadlift", "Good Mornings"],
       horizontalPush: hasShoulderIssue
         ? ["Floor Press", "Incline Push-Ups"]
-        : ["Push-Ups", "Dumbbell Press", "Diamond Push-Ups"],
+        : [addMod("Push-Ups"), "Dumbbell Press", "Diamond Push-Ups"],
       verticalPush: hasShoulderIssue
         ? ["Landmine Press", "Neutral Grip Press"]
-        : ["Dumbbell Shoulder Press", "Pike Push-Ups"],
+        : [addMod("Dumbbell Shoulder Press"), "Pike Push-Ups"],
       horizontalPull: ["Dumbbell Row", "Resistance Band Row", "Inverted Row"],
       verticalPull: ["Doorway Pull-Ups", "Resistance Band Pulldown", "Dumbbell Pullover"],
-      legs: hasKneeIssue
-        ? ["Glute Bridge", "Calf Raises"]
-        : ["Lunges", "Step-Ups", "Jump Squats"],
+      legs: hasMissingKnee
+        ? ["Single Leg Glute Bridge", "Seated Calf Raise (Dumbbell)"]
+        : hasKneeIssue
+          ? ["Glute Bridge", "Calf Raises"]
+          : ["Lunges", "Step-Ups", "Jump Squats"],
       arms: ["Dumbbell Curls", "Tricep Dips (chair)", "Concentration Curls"],
       core: hasBackIssue
         ? ["Dead Bug", "Bird Dog", "Side Plank"]
@@ -242,23 +270,27 @@ function selectExercisePool(data: OnboardingData): ExercisePool {
   } else {
     // Bodyweight only
     return {
-      squat: hasKneeIssue
-        ? ["Wall Sit", "Assisted Squat"]
-        : ["Bodyweight Squat", "Jump Squat", "Pistol Squat Progression"],
+      squat: hasMissingKnee
+        ? ["Assisted Pistol Squat (Chair)", "Wall Sit (Single Leg)"]
+        : hasKneeIssue
+          ? ["Wall Sit", "Assisted Squat"]
+          : [addMod("Bodyweight Squat"), "Jump Squat", "Pistol Squat Progression"],
       hinge: hasBackIssue
         ? ["Glute Bridge", "Single Leg Glute Bridge"]
-        : ["Single Leg Deadlift", "Good Mornings", "Glute Bridge"],
+        : [addMod("Single Leg Deadlift"), "Good Mornings", "Glute Bridge"],
       horizontalPush: hasShoulderIssue
         ? ["Incline Push-Ups", "Kneeling Push-Ups"]
-        : ["Push-Ups", "Diamond Push-Ups", "Wide Push-Ups"],
+        : [addMod("Push-Ups"), "Diamond Push-Ups", "Wide Push-Ups"],
       verticalPush: hasShoulderIssue
         ? ["Incline Push-Ups"]
-        : ["Pike Push-Ups", "Decline Push-Ups", "Handstand Hold"],
+        : [addMod("Pike Push-Ups"), "Decline Push-Ups", "Handstand Hold"],
       horizontalPull: ["Inverted Row (table)", "Resistance Band Row", "Superman"],
       verticalPull: ["Doorway Pull-Ups", "Towel Rows", "Superman Y-Raises"],
-      legs: hasKneeIssue
-        ? ["Glute Bridge", "Calf Raises"]
-        : ["Lunges", "Step-Ups", "Bulgarian Split Squat (chair)"],
+      legs: hasMissingKnee
+        ? ["Single Leg Glute Bridge", "Standing Calf Raise (Single Leg)"]
+        : hasKneeIssue
+          ? ["Glute Bridge", "Calf Raises"]
+          : ["Lunges", "Step-Ups", "Bulgarian Split Squat (chair)"],
       arms: ["Diamond Push-Ups", "Chin-Up Hold", "Tricep Dips (chair)"],
       core: hasBackIssue
         ? ["Dead Bug", "Bird Dog", "Side Plank"]
@@ -270,6 +302,18 @@ function selectExercisePool(data: OnboardingData): ExercisePool {
 
 function pick(arr: string[], index: number): string {
   return arr[index % arr.length];
+}
+
+function applyDurationLimit(day: TrainingDay, data: OnboardingData): TrainingDay {
+  const dur = data.trainingDuration;
+  let maxExercises = 6;
+  if (dur === "under-30") maxExercises = 3;
+  if (dur === "30-45") maxExercises = 4;
+  if (dur === "45-60") maxExercises = 5;
+  if (dur === "over-60") maxExercises = 8;
+
+  day.exercises = day.exercises.slice(0, maxExercises);
+  return day;
 }
 
 function buildFullBodySplit(
@@ -298,15 +342,15 @@ function buildFullBodySplit(
     }
 
     // Fat loss: add a finisher
-    if (data.fitnessGoals.includes("fat-loss") && data.planStyle !== "simple") {
+    if (data.fitnessGoals.includes("fat-loss") && data.planStyle !== "simple" && data.healthLimitations !== "asthma") {
       exercises.push({ name: "Metabolic Finisher (Burpees / Kettlebell Swings)", sets: 3, reps: "30 sec", rest: "30 sec" });
     }
 
-    return {
+    return applyDurationLimit({
       day,
       focus: `Full Body (${labels[i]})`,
       exercises,
-    };
+    }, data);
   });
 }
 
@@ -379,13 +423,13 @@ function buildUpperLowerSplit(
   }
 
   // Fat loss: add conditioning
-  if (isFatLoss) {
+  if (isFatLoss && data.healthLimitations !== "asthma") {
     result.forEach((d) => {
       d.exercises.push({ name: "Conditioning Circuit (20 min)", sets: 1, reps: "AMRAP", rest: "—" });
     });
   }
 
-  return result;
+  return result.map(day => applyDurationLimit(day, data));
 }
 
 function buildPPLSplit(
@@ -462,13 +506,13 @@ function buildPPLSplit(
     result.forEach((d) => { d.exercises = d.exercises.slice(0, 4); });
   }
 
-  if (data.fitnessGoals.includes("fat-loss")) {
+  if (data.fitnessGoals.includes("fat-loss") && data.healthLimitations !== "asthma") {
     result.forEach((d) => {
       d.exercises.push({ name: "HIIT Finisher (10 min)", sets: 1, reps: "Intervals", rest: "—" });
     });
   }
 
-  return result;
+  return result.map(day => applyDurationLimit(day, data));
 }
 
 function addWarmupCooldown(split: TrainingDay[], data: OnboardingData): TrainingDay[] {
@@ -476,11 +520,12 @@ function addWarmupCooldown(split: TrainingDay[], data: OnboardingData): Training
   const hasLimitations = data.healthLimitations.trim().length > 0 && data.healthLimitations.toLowerCase() !== "none";
 
   const warmupDuration = age > 40 || hasLimitations ? "10-15 min" : "5-10 min";
+  const limitationPrefix = hasLimitations ? `[Modified for ${data.healthLimitations}] ` : "";
 
   return split.map((day) => ({
     ...day,
     exercises: [
-      { name: `Dynamic Warm-Up & Mobility (${warmupDuration})`, sets: 1, reps: "Full routine", rest: "—" },
+      { name: `${limitationPrefix}Dynamic Warm-Up & Mobility`, sets: 1, reps: warmupDuration, rest: "—" },
       ...day.exercises,
       { name: "Cool-Down Stretching & Foam Rolling", sets: 1, reps: "5-10 min", rest: "—" },
     ],
@@ -489,9 +534,17 @@ function addWarmupCooldown(split: TrainingDay[], data: OnboardingData): Training
 
 function addCardioRecommendations(split: TrainingDay[], data: OnboardingData): TrainingDay[] {
   const goals = data.fitnessGoals;
-  const isFatLoss = goals.includes("fat-loss");
+
+  const weight = parseFloat(data.weight) || 75;
+  const height = parseFloat(data.height) || 175;
+  const bmi = weight / ((height / 100) ** 2);
+  const isUnderweight = bmi < 18.5;
+
+  let isFatLoss = goals.includes("fat-loss");
   const isGeneral = goals.includes("general-fitness");
   const isLifestyle = goals.includes("lifestyle-change");
+
+  if (isUnderweight) isFatLoss = false;
 
   if (!isFatLoss && !isGeneral && !isLifestyle) return split;
 

@@ -30,9 +30,25 @@ function calculateMacros(data: OnboardingData) {
   const isMale = data.gender !== "female";
 
   // Mifflin-St Jeor BMR
-  let bmr = isMale
+  let bmrMifflin = isMale
     ? 10 * weight + 6.25 * height - 5 * age + 5
     : 10 * weight + 6.25 * height - 5 * age - 161;
+
+  let bmr = bmrMifflin;
+
+  // Katch-McArdle Formula (Much more accurate for high/low body fat)
+  if (data.bodyFat && !isNaN(parseFloat(data.bodyFat))) {
+    const bf = parseFloat(data.bodyFat);
+    if (bf > 0 && bf < 80) {
+      const leanBodyMass = weight * (1 - bf / 100);
+      const bmrKatch = 370 + (21.6 * leanBodyMass);
+
+      // For very low body fat, Katch-McArdle can drastically underestimate BMR 
+      // compared to Mifflin if height isn't factored in. We take the higher of the two
+      // to ensure we don't accidentally starve someone.
+      bmr = Math.max(bmrMifflin, bmrKatch);
+    }
+  }
 
   // Activity multiplier
   const multipliers: Record<string, number> = {
@@ -45,28 +61,68 @@ function calculateMacros(data: OnboardingData) {
 
   // Goal-based adjustment
   let calories = tdee;
-  const goals = data.fitnessGoals;
-  if (goals.includes("fat-loss")) {
+  const goals = data.fitnessGoals || [];
+
+  // BMI Calculation to prevent starvation/undereating for underweight individuals
+  const bmi = weight / ((height / 100) ** 2);
+  const isUnderweight = bmi < 18.5;
+
+  // Resolve conflicting goals
+  let isFatLoss = goals.includes("fat-loss");
+  const isMuscleGain = goals.includes("muscle-gain");
+  const isStrength = goals.includes("strength");
+
+  // If underweight, ignore fat-loss and force muscle-gain/surplus
+  if (isUnderweight) {
+    isFatLoss = false;
+  }
+
+  const isRecomp = goals.includes("recomposition") || (isFatLoss && isMuscleGain);
+
+  // Safely determine true primary goal for macro and calorie manipulation
+  let primaryGoal = "maintenance";
+  if (isUnderweight || isMuscleGain) {
+    // Underweight ALWAYS defaults to muscle-gain (surplus) if goals conflict, 
+    // unless they strictly only chose something else (which we handle by forcing surplus anyway below)
+    primaryGoal = "muscle-gain";
+  } else if (isRecomp) {
+    primaryGoal = "recomposition";
+  } else if (isFatLoss) {
+    primaryGoal = "fat-loss";
+  } else if (isStrength) {
+    primaryGoal = "strength";
+  }
+
+  if (primaryGoal === "fat-loss") {
     // Aggressive deficit for high discipline, moderate otherwise
     const deficit = data.disciplineLevel >= 7 ? 0.75 : 0.8;
     calories = Math.round(tdee * deficit);
-  } else if (goals.includes("muscle-gain")) {
-    const surplus = data.fitnessLevel === "beginner" ? 1.15 : 1.1;
+    // Safety check: Prevent highly underweight people from extreme deficits
+    if (weight < 60) calories = Math.max(calories, Math.round(bmr * 1.0)); // At least BMR 
+  } else if (primaryGoal === "muscle-gain") {
+    // A heavier surplus for underweight or beginners
+    const surplus = (isUnderweight || data.fitnessLevel === "beginner") ? 1.15 : 1.1;
     calories = Math.round(tdee * surplus);
-  } else if (goals.includes("recomposition")) {
+  } else if (primaryGoal === "recomposition") {
     // Slight deficit or maintenance
     calories = Math.round(tdee * 0.95);
-  } else if (goals.includes("strength")) {
-    calories = Math.round(tdee * 1.05);
+  } else if (primaryGoal === "strength") {
+    const surplus = isUnderweight ? 1.1 : 1.05;
+    calories = Math.round(tdee * surplus);
   }
-  // general-fitness and lifestyle-change: stay at maintenance
+
+  // Absolute safety floor for calories
+  let calorieFloor = 1400;
+  if (!isMale) calorieFloor = 1200;
+  if (weight < 55 || isUnderweight) calorieFloor = 1800; // Hardgainer protection
+  calories = Math.max(calories, calorieFloor);
 
   // Protein per kg based on multiple factors
   let proteinPerKg = 1.6;
-  if (goals.includes("muscle-gain")) proteinPerKg = 2.0;
-  if (goals.includes("strength")) proteinPerKg = Math.max(proteinPerKg, 1.8);
-  if (goals.includes("fat-loss")) proteinPerKg = Math.max(proteinPerKg, 2.0); // preserve muscle
-  if (goals.includes("recomposition")) proteinPerKg = Math.max(proteinPerKg, 1.8);
+  if (primaryGoal === "muscle-gain") proteinPerKg = 2.0;
+  if (primaryGoal === "strength") proteinPerKg = Math.max(proteinPerKg, 1.8);
+  if (primaryGoal === "fat-loss") proteinPerKg = Math.max(proteinPerKg, 2.0); // preserve muscle
+  if (primaryGoal === "recomposition") proteinPerKg = Math.max(proteinPerKg, 1.8);
   if (data.fitnessLevel === "advanced") proteinPerKg = Math.min(2.2, proteinPerKg + 0.2);
 
   // Age adjustment: older adults benefit from higher protein
@@ -77,7 +133,7 @@ function calculateMacros(data: OnboardingData) {
   // Fat: higher for keto, lower for high-carb goals
   let fatPercent = 0.25;
   if (data.dietaryPreference === "keto") fatPercent = 0.65;
-  if (goals.includes("fat-loss") && data.dietaryPreference !== "keto") fatPercent = 0.3;
+  if (primaryGoal === "fat-loss" && data.dietaryPreference !== "keto") fatPercent = 0.3;
 
   const fat = Math.round((calories * fatPercent) / 9);
   const carbs = Math.round((calories - protein * 4 - fat * 9) / 4);
@@ -97,9 +153,11 @@ function generateMeals(data: OnboardingData, totalCalories: number): MealSuggest
   const diet = data.dietaryPreference;
   const allergies = data.allergies.toLowerCase();
   const budget = data.budgetLimitation;
+  const favorites = data.favoriteFoods || "";
+  const dislikes = data.dislikedFoods || "";
 
   // Build meal database filtered by preferences
-  const mealDb = getMealDatabase(diet, allergies, budget);
+  const mealDb = getMealDatabase(diet, allergies, budget, favorites, dislikes);
 
   const mealSlots = getMealSlots(freq);
 
@@ -149,22 +207,46 @@ function getMealSlots(freq: number): { name: string; category: string }[] {
 function getMealDatabase(
   diet: string,
   allergies: string,
-  budget: string
+  budget: string,
+  favoritesStr: string,
+  dislikesStr: string
 ): Record<string, string[]> {
-  const hasLactose = allergies.includes("lactose") || allergies.includes("dairy");
+  const hasLactose = allergies.includes("lactose");
   const hasGluten = allergies.includes("gluten");
-  const hasNuts = allergies.includes("nut");
+  const hasNuts = allergies.includes("nuts") || allergies.includes("nut");
+  const hasSoy = allergies.includes("soy");
+  const hasSeafood = allergies.includes("seafood");
   const isTight = budget === "tight";
 
+  const likes = favoritesStr.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+  const dislikes = dislikesStr.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+
   // Filter helper
-  const filter = (meals: string[]): string[] =>
-    meals.filter((m) => {
+  const filter = (meals: string[]): string[] => {
+    let filtered = meals.filter((m) => {
       const lower = m.toLowerCase();
-      if (hasLactose && (lower.includes("yogurt") || lower.includes("cheese") || lower.includes("milk") || lower.includes("whey"))) return false;
-      if (hasGluten && (lower.includes("oat") || lower.includes("bread") || lower.includes("pasta") || lower.includes("toast"))) return false;
-      if (hasNuts && (lower.includes("nut") || lower.includes("almond") || lower.includes("peanut"))) return false;
+      if (hasLactose && (lower.includes("yogurt") || lower.includes("cheese") || lower.includes("milk") || lower.includes("whey") || lower.includes("butter"))) return false;
+      if (hasGluten && (lower.includes("oat") || lower.includes("bread") || lower.includes("pasta") || lower.includes("toast") || lower.includes("couscous"))) return false;
+      if (hasNuts && (lower.includes("nut") || lower.includes("almond") || lower.includes("peanut") || lower.includes("walnut"))) return false;
+      if (hasSoy && (lower.includes("soy") || lower.includes("tofu") || lower.includes("tempeh") || lower.includes("edamame"))) return false;
+      if (hasSeafood && (lower.includes("fish") || lower.includes("salmon") || lower.includes("tuna") || lower.includes("cod") || lower.includes("seafood"))) return false;
+
+      for (const off of dislikes) {
+        if (lower.includes(off)) return false;
+      }
       return true;
     });
+
+    if (filtered.length === 0) filtered = meals; // fallback to avoid empty categories
+
+    return filtered.map(m => {
+      const lower = m.toLowerCase();
+      for (const like of likes) {
+        if (lower.includes(like)) return `★ ${m} (Features your favorite!)`;
+      }
+      return m;
+    });
+  };
 
   if (diet === "vegan") {
     return {
@@ -290,6 +372,18 @@ function generateNutritionTips(data: OnboardingData): string[] {
   const tips: string[] = [];
   const goals = data.fitnessGoals;
 
+  if (data.allergies && data.allergies.toLowerCase() !== "none") {
+    tips.push(`Your meal plan has been constructed to explicitly avoid your recorded allergies/intolerances: ${data.allergies}`);
+  }
+
+  if (data.favoriteFoods) {
+    tips.push(`Your meals feature your favorite foods (${data.favoriteFoods}). Utilizing what you like improves adherence.`);
+  }
+
+  if (data.dislikedFoods) {
+    tips.push(`We've actively excluded your disliked foods (${data.dislikedFoods}) from the recommendations.`);
+  }
+
   // Calorie awareness-based tips
   if (data.calorieAwareness === "none") {
     tips.push("Start by simply tracking what you eat for one week — awareness is the first step");
@@ -298,6 +392,17 @@ function generateNutritionTips(data: OnboardingData): string[] {
     tips.push("Consider using a food tracking app for the first 2-3 weeks to calibrate your portions");
   } else {
     tips.push("You already understand calories — focus on food quality and micronutrient density");
+  }
+
+  // Eating habits tips
+  if (data.eatingHabits === "social") {
+    tips.push("For social dining: look up menus beforehand, prioritize protein, and ask for dressings on the side.");
+  } else if (data.eatingHabits === "emotional") {
+    tips.push("If you're an emotional eater, try to pause for 5 minutes and drink a glass of water before reacting to cravings. Identify the trigger.");
+  } else if (data.eatingHabits === "intuitive") {
+    tips.push("Since you eat intuitively, focus heavily on protein and fiber to naturally regulate hunger signals.");
+  } else if (data.eatingHabits === "structured") {
+    tips.push("Your structured eating habit is great for consistency. Consider doing a large Sunday meal prep to lock in your success.");
   }
 
   // Budget tips
