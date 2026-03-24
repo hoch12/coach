@@ -9,6 +9,7 @@ import { ArrowLeft, Edit2, Check, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { getApiUrl } from "@/lib/utils";
 
 const Profile = () => {
     const { user, token, logout } = useAuth();
