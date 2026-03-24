@@ -9,6 +9,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { OnboardingData, GeneratedPlan } from "@/types/onboarding";
 import { toast } from "sonner";
 import { getApiUrl } from "@/lib/utils";
 import { BookingCalendar } from "@/components/BookingCalendar";
@@ -45,6 +49,12 @@ export default function TrainerDashboard() {
     const [isLoading, setIsLoading] = useState(true);
     const [replyText, setReplyText] = useState("");
     const [replyingTo, setReplyingTo] = useState<number | null>(null);
+    const [selectedUser, setSelectedUser] = useState<Client | null>(null);
+    const [selectedProfile, setSelectedProfile] = useState<OnboardingData | null>(null);
+    const [selectedPlan, setSelectedPlan] = useState<GeneratedPlan | null>(null);
+    const [isDetailsLoading, setIsDetailsLoading] = useState(false);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [passwordForm, setPasswordForm] = useState({ old: "", new: "", confirm: "" });
 
     useEffect(() => {
         fetchData();
@@ -112,6 +122,63 @@ export default function TrainerDashboard() {
         }
     };
 
+    const viewUserDetails = async (u: Client) => {
+        setSelectedUser(u);
+        setIsDetailsLoading(true);
+        setSelectedProfile(null);
+        setSelectedPlan(null);
+
+        try {
+            const [profileRes, planRes] = await Promise.all([
+                fetch(getApiUrl(`/api/admin/users/${u.id}/profile`), { headers: { "Authorization": `Bearer ${token}` } }),
+                fetch(getApiUrl(`/api/admin/users/${u.id}/plan`), { headers: { "Authorization": `Bearer ${token}` } })
+            ]);
+
+            if (profileRes.ok) {
+                const profileData = await profileRes.json();
+                setSelectedProfile(profileData);
+            }
+            if (planRes.ok) {
+                const planData = await planRes.json();
+                if (planData && planData.plan_data) {
+                    setSelectedPlan(JSON.parse(planData.plan_data));
+                }
+            }
+        } catch (e) {
+            toast.error("Failed to load user details");
+        } finally {
+            setIsDetailsLoading(false);
+        }
+    };
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (passwordForm.new !== passwordForm.confirm) {
+            toast.error("New passwords do not match");
+            return;
+        }
+        try {
+            const res = await fetch(getApiUrl("/api/auth/change-password"), {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ oldPassword: passwordForm.old, newPassword: passwordForm.new })
+            });
+            if (res.ok) {
+                toast.success("Password changed successfully");
+                setIsProfileOpen(false);
+                setPasswordForm({ old: "", new: "", confirm: "" });
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Failed to change password");
+            }
+        } catch (e) {
+            toast.error("Network error");
+        }
+    };
+
     const navItems = [
         { id: "clients", label: "My Clients", icon: Users },
         { id: "schedule", label: "Schedule", icon: Calendar },
@@ -140,7 +207,7 @@ export default function TrainerDashboard() {
                     ))}
                 </nav>
                 <div className="p-3 border-t border-border/50 space-y-1">
-                    <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" onClick={() => navigate("/profile")}>
+                    <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" onClick={() => setIsProfileOpen(true)}>
                         <User className="h-4 w-4 mr-2" /> My Profile
                     </Button>
                     <Button variant="ghost" className="w-full justify-start text-destructive hover:bg-destructive/10 transition-colors" onClick={() => { logout(); navigate("/login"); }}>
@@ -175,7 +242,7 @@ export default function TrainerDashboard() {
                                                 <div className="h-12 w-12 rounded-xl bg-secondary flex items-center justify-center text-xl font-bold">
                                                     {client.username[0].toUpperCase()}
                                                 </div>
-                                                <Button variant="ghost" size="icon" onClick={() => navigate(`/admin`)} title="View full details (Admin only)">
+                                                <Button variant="ghost" size="icon" onClick={() => viewUserDetails(client)} title="View client details">
                                                     <User className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -282,6 +349,87 @@ export default function TrainerDashboard() {
                         )}
                     </div>
                 </ScrollArea>
+                <Dialog open={!!selectedUser} onOpenChange={(open: boolean) => !open && setSelectedUser(null)}>
+                    <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+                        <DialogHeader>
+                            <DialogTitle>Client Details: {selectedUser?.username}</DialogTitle>
+                            <DialogDescription>Personalized fitness data and program</DialogDescription>
+                        </DialogHeader>
+
+                        <ScrollArea className="flex-1 pr-4">
+                            {isDetailsLoading ? (
+                                <p className="text-center py-8 text-muted-foreground">Loading client data...</p>
+                            ) : (
+                                <div className="space-y-6 pb-6 mt-4">
+                                    {selectedProfile && selectedProfile.age ? (
+                                        <div className="space-y-4">
+                                            <h3 className="font-semibold text-lg border-b pb-2">Profile Information</h3>
+                                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                                <div><span className="text-muted-foreground font-medium">Age:</span> {selectedProfile.age}</div>
+                                                <div><span className="text-muted-foreground font-medium">Gender:</span> {selectedProfile.gender}</div>
+                                                <div><span className="text-muted-foreground font-medium">Weight:</span> {selectedProfile.weight} kg</div>
+                                                <div><span className="text-muted-foreground font-medium">Height:</span> {selectedProfile.height} cm</div>
+                                                <div><span className="text-muted-foreground font-medium">Level:</span> {selectedProfile.fitnessLevel}</div>
+                                                <div><span className="text-muted-foreground font-medium">Diet:</span> {selectedProfile.dietaryPreference}</div>
+                                            </div>
+                                            <div className="space-y-2 text-sm">
+                                                <p><span className="text-muted-foreground font-medium">Goals:</span> {selectedProfile.fitnessGoals?.join(', ')}</p>
+                                                <p><span className="text-muted-foreground font-medium">Limitations:</span> {selectedProfile.healthLimitations || 'None'}</p>
+                                                <p><span className="text-muted-foreground font-medium">Allergies:</span> {selectedProfile.allergies || 'None'}</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <p className="text-muted-foreground italic">Client hasn't completed onboarding yet.</p>
+                                    )}
+
+                                    {selectedPlan && (
+                                        <div className="space-y-4 pt-4 border-t border-border/50">
+                                            <h3 className="font-semibold text-lg border-b pb-2">Training Plan</h3>
+                                            <p className="text-sm"><span className="text-muted-foreground font-medium">Weekly Training Days:</span> {selectedPlan.trainingSplit.length}</p>
+
+                                            <h3 className="font-semibold text-lg border-b pb-2 mt-4">Nutrition Plan</h3>
+                                            <div className="grid grid-cols-2 gap-4 text-sm">
+                                                <div><span className="text-muted-foreground font-medium">Daily Calories:</span> {selectedPlan.nutrition.calories} kcal</div>
+                                                <div><span className="text-muted-foreground font-medium">Protein:</span> {selectedPlan.nutrition.protein}g</div>
+                                                <div><span className="text-muted-foreground font-medium">Carbohydrates:</span> {selectedPlan.nutrition.carbs}g</div>
+                                                <div><span className="text-muted-foreground font-medium">Fats:</span> {selectedPlan.nutrition.fat}g</div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </ScrollArea>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Trainer Profile: {user?.username}</DialogTitle>
+                            <DialogDescription>Update your account security settings</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-6 pt-4">
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Change Password</h3>
+                                <form onSubmit={handleChangePassword} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>Current Password</Label>
+                                        <Input type="password" value={passwordForm.old} onChange={e => setPasswordForm({ ...passwordForm, old: e.target.value })} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>New Password</Label>
+                                        <Input type="password" value={passwordForm.new} onChange={e => setPasswordForm({ ...passwordForm, new: e.target.value })} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Confirm New Password</Label>
+                                        <Input type="password" value={passwordForm.confirm} onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} required />
+                                    </div>
+                                    <Button type="submit" className="w-full">Update Password</Button>
+                                </form>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </main>
         </div>
     );

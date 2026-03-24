@@ -51,6 +51,8 @@ const AdminPanel = () => {
 
     const [trainers, setTrainers] = useState<AdminUser[]>([]);
     const [selectedTrainerId, setSelectedTrainerId] = useState<string>("");
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [passwordForm, setPasswordForm] = useState({ old: "", new: "", confirm: "" });
 
     useEffect(() => {
         if (activeTab === "users") {
@@ -196,6 +198,34 @@ const AdminPanel = () => {
         }
     };
 
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (passwordForm.new !== passwordForm.confirm) {
+            toast.error("New passwords do not match");
+            return;
+        }
+        try {
+            const res = await fetch(getApiUrl("/api/auth/change-password"), {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ oldPassword: passwordForm.old, newPassword: passwordForm.new })
+            });
+            if (res.ok) {
+                toast.success("Password changed successfully");
+                setIsProfileOpen(false);
+                setPasswordForm({ old: "", new: "", confirm: "" });
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Failed to change password");
+            }
+        } catch (e) {
+            toast.error("Network error");
+        }
+    };
+
     if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading Admin Panel...</div>;
 
     return (
@@ -211,7 +241,7 @@ const AdminPanel = () => {
                             <Users className="h-5 w-5 text-accent" />
                             <span className="font-semibold text-accent">Admin Mode enabled</span>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => navigate("/profile")} className="text-muted-foreground hover:bg-secondary">
+                        <Button variant="ghost" size="sm" onClick={() => setIsProfileOpen(true)} className="text-muted-foreground hover:bg-secondary">
                             <User className="h-4 w-4 mr-2" />
                             My Profile
                         </Button>
@@ -519,6 +549,35 @@ const AdminPanel = () => {
                                 </div>
                             )}
                         </ScrollArea>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>Admin Profile: {user?.username}</DialogTitle>
+                            <DialogDescription>Update your account security settings</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-6 pt-4">
+                            <div className="space-y-4">
+                                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Change Password</h3>
+                                <form onSubmit={handleChangePassword} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>Current Password</Label>
+                                        <Input type="password" value={passwordForm.old} onChange={e => setPasswordForm({ ...passwordForm, old: e.target.value })} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>New Password</Label>
+                                        <Input type="password" value={passwordForm.new} onChange={e => setPasswordForm({ ...passwordForm, new: e.target.value })} required />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Confirm New Password</Label>
+                                        <Input type="password" value={passwordForm.confirm} onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} required />
+                                    </div>
+                                    <Button type="submit" className="w-full">Update Password</Button>
+                                </form>
+                            </div>
+                        </div>
                     </DialogContent>
                 </Dialog>
             </div>

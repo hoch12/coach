@@ -164,7 +164,15 @@ app.post('/api/admin/create-trainer', authenticateToken, isAdmin, (req, res) => 
     }
 });
 
-app.get('/api/admin/users/:id/profile', authenticateToken, isAdmin, (req, res) => {
+app.get('/api/admin/users/:id/profile', authenticateToken, isTrainer, (req, res) => {
+    const userStmt = db.prepare('SELECT trainer_id FROM users WHERE id = ?');
+    const u = userStmt.get(req.params.id);
+
+    // Authorization check: Admin can see anyone, Trainer can only see their own clients
+    if (req.user.role !== 'admin' && u?.trainer_id !== req.user.id) {
+        return res.sendStatus(403);
+    }
+
     const stmt = db.prepare('SELECT * FROM profiles WHERE user_id = ?');
     const profile = stmt.get(req.params.id);
 
@@ -177,7 +185,15 @@ app.get('/api/admin/users/:id/profile', authenticateToken, isAdmin, (req, res) =
     }
 });
 
-app.get('/api/admin/users/:id/plan', authenticateToken, isAdmin, (req, res) => {
+app.get('/api/admin/users/:id/plan', authenticateToken, isTrainer, (req, res) => {
+    const userStmt = db.prepare('SELECT trainer_id FROM users WHERE id = ?');
+    const u = userStmt.get(req.params.id);
+
+    // Authorization check
+    if (req.user.role !== 'admin' && u?.trainer_id !== req.user.id) {
+        return res.sendStatus(403);
+    }
+
     const stmt = db.prepare('SELECT * FROM plans WHERE user_id = ?');
     const plan = stmt.get(req.params.id);
     res.json(plan || null);
