@@ -1,4 +1,4 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
@@ -7,6 +7,7 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ adminOnly = false }: ProtectedRouteProps) => {
     const { user, isLoading } = useAuth();
+    const location = useLocation();
 
     if (isLoading) {
         return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -22,7 +23,7 @@ export const ProtectedRoute = ({ adminOnly = false }: ProtectedRouteProps) => {
 
     if (!adminOnly) {
         if (user.role === "admin") return <Navigate to="/admin" replace />;
-        if (user.role === "trainer" && !window.location.pathname.startsWith("/trainer") && !window.location.pathname.startsWith("/profile")) {
+        if (user.role === "trainer" && !location.pathname.startsWith("/trainer") && !location.pathname.startsWith("/profile")) {
             return <Navigate to="/trainer" replace />;
         }
     }
