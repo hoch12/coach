@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { OnboardingData, GeneratedPlan } from "@/types/onboarding";
 import { toast } from "sonner";
+import { getApiUrl } from "@/lib/utils";
 
 interface AdminUser {
     id: number;
@@ -62,7 +63,7 @@ const AdminPanel = () => {
 
     const fetchTrainers = async () => {
         try {
-            const res = await fetch("/api/admin/trainers", {
+            const res = await fetch(getApiUrl("/api/admin/trainers"), {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (res.ok) setTrainers(await res.json());
@@ -72,7 +73,7 @@ const AdminPanel = () => {
     const assignTrainer = async (userId: number, trainerId: number) => {
         if (!trainerId) return;
         try {
-            const res = await fetch("/api/admin/assign-trainer", {
+            const res = await fetch(getApiUrl("/api/admin/assign-trainer"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -92,7 +93,7 @@ const AdminPanel = () => {
     const fetchTickets = async () => {
         setIsLoading(true);
         try {
-            const res = await fetch("/api/admin/support", {
+            const res = await fetch(getApiUrl("/api/admin/support"), {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (res.ok) {
@@ -108,7 +109,7 @@ const AdminPanel = () => {
     const handleReply = async (ticketId: number) => {
         if (!replyText.trim()) return;
         try {
-            const res = await fetch(`/api/admin/support/${ticketId}/reply`, {
+            const res = await fetch(getApiUrl(`/api/admin/support/${ticketId}/reply`), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -132,7 +133,7 @@ const AdminPanel = () => {
 
     const fetchUsers = async () => {
         try {
-            const res = await fetch("/api/admin/users", {
+            const res = await fetch(getApiUrl("/api/admin/users"), {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (res.ok) {
@@ -156,8 +157,8 @@ const AdminPanel = () => {
 
         try {
             const [profileRes, planRes] = await Promise.all([
-                fetch(`/api/admin/users/${u.id}/profile`, { headers: { "Authorization": `Bearer ${token}` } }),
-                fetch(`/api/admin/users/${u.id}/plan`, { headers: { "Authorization": `Bearer ${token}` } })
+                fetch(getApiUrl(`/api/admin/users/${u.id}/profile`), { headers: { "Authorization": `Bearer ${token}` } }),
+                fetch(getApiUrl(`/api/admin/users/${u.id}/plan`), { headers: { "Authorization": `Bearer ${token}` } })
             ]);
 
             if (profileRes.ok) {
@@ -180,7 +181,7 @@ const AdminPanel = () => {
     const deleteUser = async (id: number) => {
         if (!window.confirm("Are you sure you want to delete this user?")) return;
         try {
-            const res = await fetch(`/api/admin/users/${id}`, {
+            const res = await fetch(getApiUrl(`/api/admin/users/${id}`), {
                 method: "DELETE",
                 headers: { "Authorization": `Bearer ${token}` }
             });
@@ -258,7 +259,7 @@ const AdminPanel = () => {
                                     const password = (form.elements.namedItem("trainer_password") as HTMLInputElement).value;
 
                                     try {
-                                        const res = await fetch("/api/admin/create-trainer", {
+                                        const res = await fetch(getApiUrl("/api/admin/create-trainer"), {
                                             method: "POST",
                                             headers: {
                                                 "Content-Type": "application/json",

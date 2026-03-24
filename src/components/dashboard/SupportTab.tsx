@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
+import { getApiUrl } from "@/lib/utils";
 import { Send, MessageCircle, Clock, CheckCircle } from "lucide-react";
 
 interface Ticket {
@@ -27,7 +28,7 @@ const SupportTab = () => {
 
     const fetchTickets = async () => {
         try {
-            const res = await fetch("/api/support", {
+            const res = await fetch(getApiUrl("/api/support"), {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
@@ -45,7 +46,7 @@ const SupportTab = () => {
 
         setIsSubmitting(true);
         try {
-            const res = await fetch("/api/support", {
+            const res = await fetch(getApiUrl("/api/support"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

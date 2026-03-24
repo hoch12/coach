@@ -13,6 +13,7 @@ import { StepPlanStyle } from "@/components/onboarding/StepPlanStyle";
 import { generatePlan } from "@/lib/planGenerator";
 import { validateStepData } from "@/types/onboarding";
 import { toast } from "sonner";
+import { getApiUrl } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 
@@ -49,7 +50,7 @@ const Onboarding = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch("/api/profile", {
+        const res = await fetch(getApiUrl("/api/profile"), {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (res.ok) {
@@ -102,7 +103,7 @@ const Onboarding = () => {
 
     // Save to our backend
     try {
-      await fetch("/api/profile", {
+      await fetch(getApiUrl("/api/profile"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -111,7 +112,7 @@ const Onboarding = () => {
         body: JSON.stringify(finalData)
       });
 
-      await fetch("/api/plan", {
+      await fetch(getApiUrl("/api/plan"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -154,7 +155,7 @@ const Onboarding = () => {
       <header className="flex items-center justify-between px-6 py-4 border-b border-border/50">
         <button onClick={() => navigate("/")} className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
           <Dumbbell className="h-6 w-6 text-primary" />
-          <span className="font-display font-bold">FitForge</span>
+          <span className="font-display font-bold">Coach-E</span>
         </button>
         <span className="text-sm text-muted-foreground">
           Step {step + 1} of {STEPS.length}

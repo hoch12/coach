@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useNavigate, Link, Navigate } from "react-router-dom";
 import { Dumbbell } from "lucide-react";
 import { toast } from "sonner";
+import { getApiUrl } from "@/lib/utils";
 
 const Login = () => {
     const [username, setUsername] = useState("");
@@ -26,7 +27,7 @@ const Login = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch("/api/auth/login", {
+            const response = await fetch(getApiUrl("/api/auth/login"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password }),
@@ -44,7 +45,7 @@ const Login = () => {
                     navigate("/trainer");
                 } else {
                     // Let's check if the user has a profile, if not, redirect to onboarding.
-                    const profileRes = await fetch("/api/profile", {
+                    const profileRes = await fetch(getApiUrl("/api/profile"), {
                         headers: { "Authorization": `Bearer ${data.token}` }
                     });
                     const profileData = await profileRes.json();

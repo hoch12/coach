@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dumbbell, Utensils, Plus, History } from "lucide-react";
 import { toast } from "sonner";
+import { getApiUrl } from "@/lib/utils";
 
 interface WorkoutLog {
     id: number;
@@ -45,13 +46,13 @@ export function TrackingTab() {
     const fetchLogs = async () => {
         try {
             // Fetch workouts
-            const wRes = await fetch(`/api/logs/workout?date=${date}`, {
+            const wRes = await fetch(getApiUrl(`/api/logs/workout?date=${date}`), {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (wRes.ok) setWorkoutLogs(await wRes.json());
 
             // Fetch nutrition
-            const nRes = await fetch(`/api/logs/nutrition?date=${date}`, {
+            const nRes = await fetch(getApiUrl(`/api/logs/nutrition?date=${date}`), {
                 headers: { "Authorization": `Bearer ${token}` }
             });
             if (nRes.ok) setNutritionLog(await nRes.json());
@@ -72,7 +73,7 @@ export function TrackingTab() {
         }
 
         try {
-            const res = await fetch("/api/logs/workout", {
+            const res = await fetch(getApiUrl("/api/logs/workout"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -110,7 +111,7 @@ export function TrackingTab() {
         }
 
         try {
-            const res = await fetch("/api/logs/nutrition", {
+            const res = await fetch(getApiUrl("/api/logs/nutrition"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

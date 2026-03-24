@@ -53,7 +53,7 @@ const Index = () => {
           <div className="flex items-center gap-2">
             <Dumbbell className="h-7 w-7 text-primary" />
             <span className="text-xl font-display font-bold tracking-tight text-foreground">
-              FitForge
+              Coach-E
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -179,7 +179,7 @@ const Index = () => {
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Dumbbell className="h-5 w-5 text-primary" />
-            <span className="font-display font-semibold text-foreground">FitForge</span>
+            <span className="font-display font-semibold text-foreground">Coach-E</span>
           </div>
           <p className="text-sm text-muted-foreground">
             Built on real experience. No gimmicks, no shortcuts.

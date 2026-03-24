@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useNavigate, Link, Navigate } from "react-router-dom";
 import { Dumbbell } from "lucide-react";
 import { toast } from "sonner";
+import { getApiUrl } from "@/lib/utils";
 
 const Register = () => {
     const [username, setUsername] = useState("");
@@ -30,7 +31,7 @@ const Register = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch("/api/auth/register", {
+            const response = await fetch(getApiUrl("/api/auth/register"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ username, password }),
@@ -40,7 +41,7 @@ const Register = () => {
 
             if (response.ok) {
                 // Auto-login after registration
-                const loginResponse = await fetch("/api/auth/login", {
+                const loginResponse = await fetch(getApiUrl("/api/auth/login"), {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ username, password }),

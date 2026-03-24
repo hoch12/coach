@@ -15,13 +15,14 @@ import { SupportTab } from "@/components/dashboard/SupportTab";
 import { BookingCalendar } from "@/components/BookingCalendar";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { getApiUrl } from "@/lib/utils";
 
 const UserBookingsList = () => {
   const { token } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch("/api/bookings", {
+    fetch(getApiUrl("/api/bookings"), {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(res => res.json())
@@ -29,7 +30,7 @@ const UserBookingsList = () => {
   }, [token]);
 
   const cancelBooking = async (id: number) => {
-    const res = await fetch(`/api/bookings/${id}/cancel`, {
+    const res = await fetch(getApiUrl(`/api/bookings/${id}/cancel`), {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -98,7 +99,7 @@ const Dashboard = () => {
         <div className="p-5 border-b border-border/50">
           <div className="flex items-center gap-2">
             <Dumbbell className="h-6 w-6 text-primary" />
-            <span className="font-display font-bold text-lg">FitForge</span>
+            <span className="font-display font-bold text-lg">Coach-E</span>
           </div>
         </div>
 

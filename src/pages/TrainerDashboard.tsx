@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { getApiUrl } from "@/lib/utils";
 import { BookingCalendar } from "@/components/BookingCalendar";
 
 interface Client {
@@ -53,17 +54,17 @@ export default function TrainerDashboard() {
         setIsLoading(true);
         try {
             if (activeTab === "clients") {
-                const res = await fetch("/api/trainer/clients", {
+                const res = await fetch(getApiUrl("/api/trainer/clients"), {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setClients(await res.json());
             } else if (activeTab === "schedule") {
-                const res = await fetch("/api/bookings", {
+                const res = await fetch(getApiUrl("/api/bookings"), {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setBookings(await res.json());
             } else if (activeTab === "chat") {
-                const res = await fetch("/api/support", {
+                const res = await fetch(getApiUrl("/api/support"), {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setTickets(await res.json());
@@ -78,7 +79,7 @@ export default function TrainerDashboard() {
     const handleReply = async (ticketId: number) => {
         if (!replyText.trim()) return;
         try {
-            const res = await fetch(`/api/support/${ticketId}/reply`, {
+            const res = await fetch(getApiUrl(`/api/support/${ticketId}/reply`), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -98,7 +99,7 @@ export default function TrainerDashboard() {
     };
     const handleBookingStatus = async (bookingId: number, action: 'accept' | 'decline') => {
         try {
-            const res = await fetch(`/api/bookings/${bookingId}/${action}`, {
+            const res = await fetch(getApiUrl(`/api/bookings/${bookingId}/${action}`), {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -123,7 +124,7 @@ export default function TrainerDashboard() {
             <aside className="hidden md:flex flex-col w-64 border-r border-border/50 bg-card/50">
                 <div className="p-5 border-b border-border/50 flex items-center gap-2">
                     <Dumbbell className="h-6 w-6 text-primary" />
-                    <span className="font-display font-bold text-lg">FitForge Coach</span>
+                    <span className="font-display font-bold text-lg">Coach-E</span>
                 </div>
                 <nav className="flex-1 p-3 space-y-1">
                     {navItems.map((item) => (

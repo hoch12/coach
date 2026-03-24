@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Clock, Check } from "lucide-react";
 import { Button } from "./ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { getApiUrl } from "@/lib/utils";
 
 interface Booking {
     start_time: string;
@@ -23,7 +24,7 @@ export function BookingCalendar({ trainerId }: { trainerId: number }) {
 
     const fetchBusySlots = async () => {
         try {
-            const res = await fetch(`/api/bookings/trainer/${trainerId}`, {
+            const res = await fetch(getApiUrl(`/api/bookings/trainer/${trainerId}`), {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = await res.json();
@@ -116,7 +117,7 @@ export function BookingCalendar({ trainerId }: { trainerId: number }) {
 
     useEffect(() => {
         if (user?.role === 'trainer') {
-            fetch("/api/trainer/clients", { headers: { Authorization: `Bearer ${token}` } })
+            fetch(getApiUrl("/api/trainer/clients"), { headers: { Authorization: `Bearer ${token}` } })
                 .then(res => res.json())
                 .then(data => setClients(data));
         }
@@ -134,7 +135,7 @@ export function BookingCalendar({ trainerId }: { trainerId: number }) {
         const startTime = format(selectedDate, "yyyy-MM-dd") + "T" + time + ":00";
 
         try {
-            const res = await fetch("/api/bookings", {
+            const res = await fetch(getApiUrl("/api/bookings"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
