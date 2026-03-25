@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { getApiUrl } from "@/lib/utils";
@@ -68,11 +69,14 @@ const SupportTab = () => {
             });
 
             if (res.ok) {
-                toast.success(recipient === "admin" ? "Message sent to Administration!" : "Message sent to your Coach!");
+                console.log("[SupportTab] Message sent successfully");
+                toast.success(recipient === "admin" ? "Zpráva odeslána administrátorovi!" : "Zpráva odeslána trenérovi!");
                 setNewMessage("");
                 fetchTickets();
             } else {
-                toast.error("Failed to send message.");
+                const errData = await res.json().catch(() => ({}));
+                console.error("[SupportTab] Send message failed:", res.status, errData);
+                toast.error(`Chyba při odesílání: ${errData.error || res.statusText}`);
             }
         } catch (e) {
             console.error(e);
@@ -100,27 +104,37 @@ const SupportTab = () => {
                     <CardDescription>We typically reply within 24 hours.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                        <div className="flex p-1 bg-secondary/50 rounded-lg w-full sm:w-auto">
+                    <div className="flex flex-col gap-4">
+                        <Label className="text-sm font-semibold">Komu chcete zprávu odeslat?</Label>
+                        <div className="flex p-1 bg-secondary/50 rounded-xl w-full sm:w-fit border border-border/50">
                             <button
                                 type="button"
-                                onClick={() => setRecipient("coach")}
+                                onClick={() => {
+                                    console.log("[SupportTab] Switching recipient to: coach");
+                                    setRecipient("coach");
+                                }}
                                 disabled={!user?.trainer_id}
-                                className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm transition-all ${recipient === "coach" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"}`}
+                                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${recipient === "coach" ? "bg-primary text-primary-foreground shadow-lg scale-[1.02]" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 disabled:opacity-30"}`}
                             >
-                                Váš trenér
+                                Můj trenér
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setRecipient("admin")}
-                                className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm transition-all ${recipient === "admin" ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                                onClick={() => {
+                                    console.log("[SupportTab] Switching recipient to: admin");
+                                    setRecipient("admin");
+                                }}
+                                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${recipient === "admin" ? "bg-accent text-accent-foreground shadow-lg scale-[1.02]" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"}`}
                             >
                                 Administrátor
                             </button>
                         </div>
-                        {!user?.trainer_id && recipient === "admin" && (
-                            <p className="text-xs text-muted-foreground italic">
-                                Nemáte přiřazeného trenéra, Vaše zpráva bude směřována na podporu.
+
+                        {recipient === "admin" && (
+                            <p className="text-xs bg-accent/10 text-accent-foreground p-3 rounded-lg border border-accent/20 animate-in fade-in slide-in-from-top-1">
+                                {!user?.trainer_id
+                                    ? "Nemáte přiřazeného trenéra. Zpráva bude automaticky směřována na centrální podporu."
+                                    : "Zpráva bude odeslána přímo administrátorovi systému (mimo Vašeho trenéra)."}
                             </p>
                         )}
                     </div>

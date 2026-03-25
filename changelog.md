@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.6] - 2026-03-25
+### Added
+- Custom favicon for the platform.
+- Diagnostic logging to `AuthContext.tsx` to troubleshoot session persistence.
+
+### Fixed
+- Session persistence significantly improved by hardening the backend `SECRET_KEY` and making the client-side sync more resilient to network flickers.
+- Support message routing accuracy fixed by improving the `toAdmin` flag handling and providing a clearer UI toggle for Clients.
+- Profile image update feedback improved with explicit success/error toast messages and console logging in all dashboards.
+
 ## [2.3.5] - 2026-03-25
 ### Fixed
 - Session persistence improved by implementing a stable `SECRET_KEY` in the backend, preventing accidental logouts on server restarts.

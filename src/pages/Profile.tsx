@@ -152,11 +152,13 @@ const Profile = () => {
 
             if (res.ok) {
                 const data = await res.json();
+                console.log("[Profile] Settings updated successfully:", data.user);
                 updateUser(data.user);
-                toast.success("Public profile updated!");
+                toast.success("Nastavení profilu bylo úspěšně uloženo!");
             } else {
-                const data = await res.json();
-                toast.error(data.error || "Update failed");
+                const data = await res.json().catch(() => ({}));
+                console.error("[Profile] Settings update failed:", res.status, data);
+                toast.error(data.error || `Chyba při ukládání: ${res.statusText}`);
             }
         } catch (e) {
             toast.error("Network error");

@@ -68,27 +68,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 }
             }
 
-            // Always sync with backend on mount
+            console.log("[Auth] Stored token found, initiating sync...");
             fetch(getApiUrl("/api/auth/me"), {
                 headers: { Authorization: `Bearer ${storedToken}` }
             })
-                .then(res => {
-                    if (!res.ok) throw new Error("Unauthorized");
+                .then(async res => {
+                    if (res.status === 401 || res.status === 403) {
+                        console.warn("[Auth] Token invalid or expired (Status:", res.status, ")");
+                        throw new Error("Unauthorized");
+                    }
+                    if (!res.ok) {
+                        console.error("[Auth] Sync failed with server error:", res.status);
+                        throw new Error("ServerError");
+                    }
                     return res.json();
                 })
                 .then(data => {
                     if (data.user) {
+                        console.log("[Auth] Sync successful. User:", data.user.username);
                         setUser(data.user);
                         try {
                             localStorage.setItem("user", JSON.stringify(data.user));
                         } catch (e) {
-                            // ignore quota exceeded
+                            console.warn("[Auth] Failed to update localStorage user (quota?)");
                         }
                     }
                 })
                 .catch(err => {
-                    console.error("Auth sync failed:", err);
-                    if (err.message === "Unauthorized") logout();
+                    if (err.message === "Unauthorized") {
+                        console.log("[Auth] Logging out due to invalid session.");
+                        logout();
+                    } else {
+                        console.error("[Auth] Sync network or server error:", err);
+                        // Do NOT logout on network errors, preserve the local session
+                    }
                 })
                 .finally(() => setIsLoading(false));
         } else {

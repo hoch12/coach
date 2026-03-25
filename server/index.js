@@ -6,7 +6,7 @@ import db from './db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.SECRET_KEY || 'coach-e-permanent-dev-key-12345';
+const SECRET_KEY = process.env.SECRET_KEY || 'COACH_E_STABLE_DEV_SECRET_2024_!@#$%';
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -286,13 +286,13 @@ app.post('/api/support', authenticateToken, (req, res) => {
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
     const { toAdmin } = req.body;
-    const isToAdmin = toAdmin === true || String(toAdmin) === 'true';
+    const isToAdmin = toAdmin === true || toAdmin === 'true'; // Support both boolean and string just in case
     const user = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(req.user.id);
 
-    // Determine the actual trainer_id for the ticket
+    // Force null if isToAdmin is true OR if user has no trainer assigned
     const trainerId = (isToAdmin || !user?.trainer_id) ? null : user.trainer_id;
 
-    console.log(`[Support] Ticket from ${req.user.username} (ID: ${req.user.id}). toAdmin: ${isToAdmin}, assignedTrainer: ${user?.trainer_id}, finalRouting: ${trainerId === null ? 'ADMIN' : 'TRAINER (ID: ' + trainerId + ')'}`);
+    console.log(`[Support Routing] Message from: ${req.user.username}. toAdmin flag: ${toAdmin} (interpreted as ${isToAdmin}). User's trainer_id: ${user?.trainer_id}. Target trainerId: ${trainerId}`);
 
     const stmt = db.prepare('INSERT INTO support_tickets (user_id, trainer_id, message) VALUES (?, ?, ?)');
     const info = stmt.run(req.user.id, trainerId, message);

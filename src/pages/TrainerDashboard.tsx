@@ -487,8 +487,13 @@ export default function TrainerDashboard() {
                                                         });
                                                         if (res.ok) {
                                                             const data = await res.json();
+                                                            console.log("[Trainer] Avatar updated successfully:", data.user);
                                                             updateUser(data.user);
-                                                            toast.success("Profilová fotka aktualizována");
+                                                            toast.success("Profilová fotka byla úspěšně změněna!");
+                                                        } else {
+                                                            const errData = await res.json().catch(() => ({}));
+                                                            console.error("[Trainer] Avatar update failed:", res.status, errData);
+                                                            toast.error(`Chyba při nahrávání: ${errData.error || res.statusText}`);
                                                         }
                                                     } catch (e) {
                                                         toast.error("Chyba při nahrávání");
@@ -527,11 +532,13 @@ export default function TrainerDashboard() {
                                                     });
                                                     if (res.ok) {
                                                         const data = await res.json();
+                                                        console.log("[Trainer] Username updated successfully:", data.user);
                                                         updateUser(data.user);
-                                                        toast.success("Uživatelské jméno změněno");
+                                                        toast.success("Uživatelské jméno bylo úspěšně změněno!");
                                                     } else {
-                                                        const data = await res.json();
-                                                        toast.error(data.error || "Chyba při změně");
+                                                        const errData = await res.json().catch(() => ({}));
+                                                        console.error("[Trainer] Username update failed:", res.status, errData);
+                                                        toast.error(errData.error || "Chyba při změně jména");
                                                     }
                                                 } catch (e) {
                                                     toast.error("Chyba sítě");

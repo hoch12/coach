@@ -694,8 +694,13 @@ const AdminPanel = () => {
                                                         });
                                                         if (res.ok) {
                                                             const data = await res.json();
+                                                            console.log("[Admin] Avatar updated successfully:", data.user);
                                                             updateUser(data.user);
-                                                            toast.success("Profilová fotka aktualizována");
+                                                            toast.success("Administrátorská fotka byla úspěšně změněna!");
+                                                        } else {
+                                                            const errData = await res.json().catch(() => ({}));
+                                                            console.error("[Admin] Avatar update failed:", res.status, errData);
+                                                            toast.error(`Chyba při nahrávání: ${errData.error || res.statusText}`);
                                                         }
                                                     } catch (e) {
                                                         toast.error("Chyba při nahrávání");
@@ -734,11 +739,13 @@ const AdminPanel = () => {
                                                     });
                                                     if (res.ok) {
                                                         const data = await res.json();
+                                                        console.log("[Admin] Username updated successfully:", data.user);
                                                         updateUser(data.user);
-                                                        toast.success("Uživatelské jméno změněno");
+                                                        toast.success("Administrátorské jméno bylo úspěšně změněno!");
                                                     } else {
-                                                        const data = await res.json();
-                                                        toast.error(data.error || "Chyba při změně");
+                                                        const errData = await res.json().catch(() => ({}));
+                                                        console.error("[Admin] Username update failed:", res.status, errData);
+                                                        toast.error(errData.error || "Chyba při změně jména");
                                                     }
                                                 } catch (e) {
                                                     toast.error("Chyba sítě");
