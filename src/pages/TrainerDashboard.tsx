@@ -262,7 +262,7 @@ export default function TrainerDashboard() {
                             {user?.profile_image ? (
                                 <img src={user.profile_image} alt="Avatar" className="h-full w-full object-cover" />
                             ) : (
-                                <span className="text-primary font-bold">{user?.username[0].toUpperCase()}</span>
+                                <span className="text-primary font-bold">{user?.username?.[0]?.toUpperCase()}</span>
                             )}
                         </div>
                     </div>
@@ -280,7 +280,7 @@ export default function TrainerDashboard() {
                                                     {client.profile_image ? (
                                                         <img src={client.profile_image} alt="Avatar" className="h-full w-full object-cover" />
                                                     ) : (
-                                                        <span className="text-xl font-bold">{client.username[0].toUpperCase()}</span>
+                                                        <span className="text-xl font-bold">{client.username?.[0]?.toUpperCase()}</span>
                                                     )}
                                                 </div>
                                                 <Button variant="ghost" size="icon" onClick={() => viewUserDetails(client)} title="View client details">

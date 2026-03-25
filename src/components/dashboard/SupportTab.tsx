@@ -54,6 +54,7 @@ const SupportTab = () => {
 
         setIsSubmitting(true);
         try {
+            console.log("[Support] Sending message:", { message: newMessage, toAdmin: recipient === "admin" });
             const res = await fetch(getApiUrl("/api/support"), {
                 method: "POST",
                 headers: {

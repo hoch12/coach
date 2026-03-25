@@ -25,6 +25,15 @@ const Profile = () => {
     const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
     useEffect(() => {
+        if (user) {
+            setPublicSettings({
+                username: user.username,
+                profile_image: user.profile_image || ""
+            });
+        }
+    }, [user]);
+
+    useEffect(() => {
         fetchProfile();
     }, [token]);
 

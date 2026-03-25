@@ -6,7 +6,7 @@ import db from './db.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.SECRET_KEY || 'super-secret-coach-e-key';
+const SECRET_KEY = process.env.SECRET_KEY || 'coach-e-permanent-dev-key-12345';
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -286,10 +286,13 @@ app.post('/api/support', authenticateToken, (req, res) => {
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
     const { toAdmin } = req.body;
+    const isToAdmin = toAdmin === true || String(toAdmin) === 'true';
     const user = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(req.user.id);
 
     // Determine the actual trainer_id for the ticket
-    const trainerId = (toAdmin === true || !user?.trainer_id) ? null : user.trainer_id;
+    const trainerId = (isToAdmin || !user?.trainer_id) ? null : user.trainer_id;
+
+    console.log(`[Support] Ticket from ${req.user.username} (ID: ${req.user.id}). toAdmin: ${isToAdmin}, assignedTrainer: ${user?.trainer_id}, finalRouting: ${trainerId === null ? 'ADMIN' : 'TRAINER (ID: ' + trainerId + ')'}`);
 
     const stmt = db.prepare('INSERT INTO support_tickets (user_id, trainer_id, message) VALUES (?, ?, ?)');
     const info = stmt.run(req.user.id, trainerId, message);
