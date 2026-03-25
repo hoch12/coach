@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -269,7 +268,7 @@ export default function TrainerDashboard() {
                     </div>
                 </header>
 
-                <ScrollArea className="flex-1 p-8">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-8">
                     <div className="max-w-5xl mx-auto">
                         {activeTab === "clients" && (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -390,15 +389,15 @@ export default function TrainerDashboard() {
                             </div>
                         )}
                     </div>
-                </ScrollArea>
+                </div>
                 <Dialog open={!!selectedUser} onOpenChange={(open: boolean) => !open && setSelectedUser(null)}>
-                    <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-                        <DialogHeader>
+                    <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+                        <DialogHeader className="p-6 pb-2">
                             <DialogTitle>Client Details: {selectedUser?.username}</DialogTitle>
                             <DialogDescription>Personalized fitness data and program</DialogDescription>
                         </DialogHeader>
 
-                        <ScrollArea className="flex-1 pr-4">
+                        <div className="flex-1 overflow-y-auto px-6 pb-6 mt-2">
                             {isDetailsLoading ? (
                                 <p className="text-center py-8 text-muted-foreground">Loading client data...</p>
                             ) : (
@@ -440,7 +439,7 @@ export default function TrainerDashboard() {
                                     )}
                                 </div>
                             )}
-                        </ScrollArea>
+                        </div>
                     </DialogContent>
                 </Dialog>
 
@@ -451,14 +450,14 @@ export default function TrainerDashboard() {
                             <DialogDescription>Aktualizujte informace o svém veřejném profilu.</DialogDescription>
                         </DialogHeader>
 
-                        <ScrollArea className="flex-1 px-6 pb-6">
+                        <div className="flex-1 overflow-y-auto px-6 pb-6">
                             <div className="space-y-6 pt-2">
                                 <div className="flex flex-col items-center gap-4 py-4">
                                     <div className="h-24 w-24 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border-2 border-primary/20 shadow-lg">
                                         {user?.profile_image ? (
                                             <img src={user.profile_image} alt="Avatar" className="h-full w-full object-cover" />
                                         ) : (
-                                            <span className="text-3xl font-bold text-primary">{user?.username[0].toUpperCase()}</span>
+                                            <span className="text-3xl font-bold text-primary">{user?.username?.[0]?.toUpperCase()}</span>
                                         )}
                                     </div>
                                     <div className="flex flex-col items-center gap-2">
@@ -565,7 +564,7 @@ export default function TrainerDashboard() {
                                     </div>
                                 </div>
                             </div>
-                        </ScrollArea>
+                        </div>
                     </DialogContent>
                 </Dialog>
             </main>

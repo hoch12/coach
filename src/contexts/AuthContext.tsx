@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { getApiUrl } from "@/lib/utils";
 
 export interface User {
     id: number;
@@ -24,41 +25,76 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [token, setToken] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        const storedToken = localStorage.getItem("token");
-        const storedUser = localStorage.getItem("user");
-
-        if (storedToken && storedUser) {
-            setToken(storedToken);
-            setUser(JSON.parse(storedUser));
-        }
-        setIsLoading(false);
-    }, []);
-
-    const login = (newToken: string, newUser: User) => {
-        localStorage.setItem("token", newToken);
-        localStorage.setItem("user", JSON.stringify(newUser));
-        setToken(newToken);
-        setUser(newUser);
-    };
-
-    const logout = () => {
+    const logout = useCallback(() => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         setToken(null);
         setUser(null);
-    };
+    }, []);
 
-    const updateUser = (newUser: Partial<User>) => {
-        if (!user) return;
-        const updatedUser = { ...user, ...newUser };
+    const login = useCallback((newToken: string, newUser: User) => {
+        localStorage.setItem("token", newToken);
         try {
-            localStorage.setItem("user", JSON.stringify(updatedUser));
-        } catch (e) {
-            console.warn("Failed to save user to localStorage (likely quota exceeded)", e);
+            localStorage.setItem("user", JSON.stringify(newUser));
+        } catch (e) { }
+        setToken(newToken);
+        setUser(newUser);
+    }, []);
+
+    const updateUser = useCallback((newUser: Partial<User>) => {
+        setUser(prev => {
+            if (!prev) return null;
+            const updated = { ...prev, ...newUser };
+            try {
+                localStorage.setItem("user", JSON.stringify(updated));
+            } catch (e) {
+                console.warn("Failed to save user to localStorage (likely quota exceeded)", e);
+            }
+            return updated;
+        });
+    }, []);
+
+    useEffect(() => {
+        const storedToken = localStorage.getItem("token");
+        const storedUser = localStorage.getItem("user");
+
+        if (storedToken) {
+            setToken(storedToken);
+            if (storedUser) {
+                try {
+                    setUser(JSON.parse(storedUser));
+                } catch (e) {
+                    console.error("Failed to parse stored user", e);
+                }
+            }
+
+            // Always sync with backend on mount
+            fetch(getApiUrl("/api/auth/me"), {
+                headers: { Authorization: `Bearer ${storedToken}` }
+            })
+                .then(res => {
+                    if (!res.ok) throw new Error("Unauthorized");
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.user) {
+                        setUser(data.user);
+                        try {
+                            localStorage.setItem("user", JSON.stringify(data.user));
+                        } catch (e) {
+                            // ignore quota exceeded
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error("Auth sync failed:", err);
+                    if (err.message === "Unauthorized") logout();
+                })
+                .finally(() => setIsLoading(false));
+        } else {
+            setIsLoading(false);
         }
-        setUser(updatedUser);
-    };
+    }, [logout]);
 
     return (
         <AuthContext.Provider value={{ user, token, login, logout, updateUser, isLoading }}>

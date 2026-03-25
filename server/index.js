@@ -68,6 +68,16 @@ app.post('/api/auth/login', (req, res) => {
     res.json({ token, user: { id: user.id, username: user.username, role: user.role, trainer_id: user.trainer_id, profile_image: user.profile_image } });
 });
 
+app.get('/api/auth/me', authenticateToken, (req, res) => {
+    const stmt = db.prepare('SELECT id, username, role, trainer_id, profile_image FROM users WHERE id = ?');
+    const user = stmt.get(req.user.id);
+    if (user) {
+        res.json({ user });
+    } else {
+        res.status(404).json({ error: 'User not found' });
+    }
+});
+
 app.post('/api/auth/change-password', authenticateToken, (req, res) => {
     const { oldPassword, newPassword } = req.body;
     const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);

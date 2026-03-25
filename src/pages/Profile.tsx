@@ -158,7 +158,7 @@ const Profile = () => {
 
     if (user?.role === "admin" || user?.role === "trainer") {
         return (
-            <div className="min-h-screen bg-background p-6">
+            <div className="min-h-screen bg-background p-4 sm:p-6 overflow-y-auto">
                 <div className="max-w-2xl mx-auto space-y-6">
                     <header className="flex items-center justify-between">
                         <Button variant="ghost" onClick={() => navigate(user.role === 'admin' ? "/admin" : "/trainer")} className="pl-0 text-muted-foreground">
@@ -203,7 +203,7 @@ const Profile = () => {
                                             {publicSettings.profile_image ? (
                                                 <img src={publicSettings.profile_image} alt="Avatar" className="h-full w-full object-cover" />
                                             ) : (
-                                                <span className="text-2xl font-bold text-primary">{user.username[0].toUpperCase()}</span>
+                                                <span className="text-2xl font-bold text-primary">{user?.username?.[0]?.toUpperCase()}</span>
                                             )}
                                         </div>
                                         <div className="flex-1 space-y-2">
@@ -239,7 +239,7 @@ const Profile = () => {
     if (!profile) return <div className="p-8 text-center text-muted-foreground">Loading profile...</div>;
 
     return (
-        <div className="min-h-screen bg-background p-6">
+        <div className="min-h-screen bg-background p-4 sm:p-6 overflow-y-auto">
             <div className="max-w-2xl mx-auto space-y-6">
                 <header className="flex items-center justify-between">
                     <Button variant="ghost" onClick={() => navigate("/dashboard")} className="pl-0 text-muted-foreground">
@@ -264,7 +264,7 @@ const Profile = () => {
                                 {publicSettings.profile_image ? (
                                     <img src={publicSettings.profile_image} alt="Avatar" className="h-full w-full object-cover" />
                                 ) : (
-                                    <span className="text-2xl font-bold text-primary">{user?.username[0].toUpperCase()}</span>
+                                    <span className="text-2xl font-bold text-primary">{user?.username?.[0]?.toUpperCase()}</span>
                                 )}
                             </div>
                             <div className="flex-1 space-y-2">

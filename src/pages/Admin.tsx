@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Trash2, Users, Eye, LogOut, User } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { OnboardingData, GeneratedPlan } from "@/types/onboarding";
@@ -588,14 +587,14 @@ const AdminPanel = () => {
                 )}
 
                 <Dialog open={!!selectedUser} onOpenChange={(open: boolean) => !open && setSelectedUser(null)}>
-                    <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
-                        <DialogHeader>
+                    <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+                        <DialogHeader className="p-6 pb-2">
                             <div className="flex items-center gap-4 mb-2">
                                 <div className="h-16 w-16 rounded-2xl bg-secondary flex items-center justify-center overflow-hidden border border-border/50">
                                     {selectedUser?.profile_image ? (
                                         <img src={selectedUser.profile_image} alt="Avatar" className="h-full w-full object-cover" />
                                     ) : (
-                                        <span className="text-2xl font-bold text-muted-foreground">{selectedUser?.username[0].toUpperCase()}</span>
+                                        <span className="text-2xl font-bold text-muted-foreground">{selectedUser?.username?.[0]?.toUpperCase()}</span>
                                     )}
                                 </div>
                                 <div className="flex flex-col">
@@ -605,7 +604,7 @@ const AdminPanel = () => {
                             </div>
                         </DialogHeader>
 
-                        <ScrollArea className="flex-1 pr-4">
+                        <div className="flex-1 overflow-y-auto px-6 pb-6 mt-2">
                             {isDetailsLoading ? (
                                 <p className="text-center py-8 text-muted-foreground">Loading specific data...</p>
                             ) : (
@@ -647,7 +646,7 @@ const AdminPanel = () => {
                                     )}
                                 </div>
                             )}
-                        </ScrollArea>
+                        </div>
                     </DialogContent>
                 </Dialog>
 
@@ -658,14 +657,14 @@ const AdminPanel = () => {
                             <DialogDescription>Update your account security settings</DialogDescription>
                         </DialogHeader>
 
-                        <ScrollArea className="flex-1 px-6 pb-6">
+                        <div className="flex-1 overflow-y-auto px-6 pb-6">
                             <div className="space-y-6 pt-2">
                                 <div className="flex flex-col items-center gap-4 py-4">
                                     <div className="h-24 w-24 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border-2 border-primary/20 shadow-lg">
                                         {user?.profile_image ? (
                                             <img src={user.profile_image} alt="Avatar" className="h-full w-full object-cover" />
                                         ) : (
-                                            <span className="text-3xl font-bold text-primary">{user?.username[0].toUpperCase()}</span>
+                                            <span className="text-3xl font-bold text-primary">{user?.username?.[0]?.toUpperCase()}</span>
                                         )}
                                     </div>
                                     <div className="flex flex-col items-center gap-2">
@@ -772,7 +771,7 @@ const AdminPanel = () => {
                                     </div>
                                 </div>
                             </div>
-                        </ScrollArea>
+                        </div>
                     </DialogContent>
                 </Dialog>
             </div >
