@@ -117,8 +117,8 @@ const Profile = () => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (file.size > 1024 * 1024) { // 1MB limit for Base64 storage
-            toast.error("Image too large (max 1MB)");
+        if (file.size > 10 * 1024 * 1024) { // 10MB limit
+            toast.error("Image too large (max 10MB)");
             return;
         }
 

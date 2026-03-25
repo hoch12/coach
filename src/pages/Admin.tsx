@@ -17,6 +17,7 @@ interface AdminUser {
     username: string;
     role: string;
     trainer_id: number | null;
+    profile_image: string | null;
 }
 
 interface SupportTicket {
@@ -239,7 +240,7 @@ const AdminPanel = () => {
                     <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                             <Users className="h-5 w-5 text-accent" />
-                            <span className="font-semibold text-accent">Admin Mode enabled</span>
+                            <span className="font-semibold text-accent hidden sm:inline">Admin Mode enabled</span>
                         </div>
                         <Button variant="ghost" size="sm" onClick={() => setIsProfileOpen(true)} className="text-muted-foreground hover:bg-secondary">
                             <User className="h-4 w-4 mr-2" />
@@ -380,7 +381,18 @@ const AdminPanel = () => {
                                         {users.map((u) => (
                                             <tr key={u.id} className="hover:bg-secondary/30 transition-colors">
                                                 <td className="px-4 py-3 font-medium">{u.id}</td>
-                                                <td className="px-4 py-3">{u.username}</td>
+                                                <td className="px-4 py-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center overflow-hidden border border-border/50">
+                                                            {u.profile_image ? (
+                                                                <img src={u.profile_image} alt="U" className="h-full w-full object-cover" />
+                                                            ) : (
+                                                                <span className="text-xs font-bold text-muted-foreground">{u.username[0].toUpperCase()}</span>
+                                                            )}
+                                                        </div>
+                                                        {u.username}
+                                                    </div>
+                                                </td>
                                                 <td className="px-4 py-3">
                                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-accent/20 text-accent' : u.role === 'trainer' ? 'bg-purple-500/20 text-purple-500' : 'bg-primary/20 text-primary'}`}>
                                                         {u.role}
@@ -502,8 +514,19 @@ const AdminPanel = () => {
                 <Dialog open={!!selectedUser} onOpenChange={(open: boolean) => !open && setSelectedUser(null)}>
                     <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
                         <DialogHeader>
-                            <DialogTitle>User Details: {selectedUser?.username}</DialogTitle>
-                            <DialogDescription>Role: {selectedUser?.role}</DialogDescription>
+                            <div className="flex items-center gap-4 mb-2">
+                                <div className="h-16 w-16 rounded-2xl bg-secondary flex items-center justify-center overflow-hidden border border-border/50">
+                                    {selectedUser?.profile_image ? (
+                                        <img src={selectedUser.profile_image} alt="Avatar" className="h-full w-full object-cover" />
+                                    ) : (
+                                        <span className="text-2xl font-bold text-muted-foreground">{selectedUser?.username[0].toUpperCase()}</span>
+                                    )}
+                                </div>
+                                <div className="flex flex-col">
+                                    <DialogTitle>User Details: {selectedUser?.username}</DialogTitle>
+                                    <DialogDescription>Role: {selectedUser?.role}</DialogDescription>
+                                </div>
+                            </div>
                         </DialogHeader>
 
                         <ScrollArea className="flex-1 pr-4">

@@ -164,7 +164,7 @@ app.post('/api/plan', authenticateToken, (req, res) => {
 
 // --- Admin Routes ---
 app.get('/api/admin/users', authenticateToken, isAdmin, (req, res) => {
-    const stmt = db.prepare('SELECT id, username, role, trainer_id FROM users');
+    const stmt = db.prepare('SELECT id, username, role, trainer_id, profile_image FROM users');
     const users = stmt.all();
     res.json(users);
 });
@@ -238,7 +238,7 @@ app.post('/api/admin/assign-trainer', authenticateToken, isAdmin, (req, res) => 
 });
 
 app.get('/api/trainer/clients', authenticateToken, isTrainer, (req, res) => {
-    const stmt = db.prepare('SELECT id, username FROM users WHERE trainer_id = ?');
+    const stmt = db.prepare('SELECT id, username, profile_image FROM users WHERE trainer_id = ?');
     res.json(stmt.all(req.user.id));
 });
 
@@ -275,12 +275,11 @@ app.post('/api/support', authenticateToken, (req, res) => {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
-    // Find the user's trainer
-    const user = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(req.user.id);
     const { toAdmin } = req.body;
+    const user = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(req.user.id);
 
-    // If user wants to message admin OR has no trainer, trainer_id is null
-    const trainerId = toAdmin || !user?.trainer_id ? null : user.trainer_id;
+    // Determine the actual trainer_id for the ticket
+    const trainerId = (toAdmin === true || !user?.trainer_id) ? null : user.trainer_id;
 
     const stmt = db.prepare('INSERT INTO support_tickets (user_id, trainer_id, message) VALUES (?, ?, ?)');
     const info = stmt.run(req.user.id, trainerId, message);

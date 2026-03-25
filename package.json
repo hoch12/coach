@@ -1,7 +1,7 @@
 {
   "name": "coach-e",
   "private": true,
-  "version": "2.3.0",
+  "version": "2.3.1",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"vite\"",
