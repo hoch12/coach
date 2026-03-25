@@ -30,7 +30,7 @@ const features = [
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
@@ -58,9 +58,14 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-3">
             {user ? (
-              <Button variant="heroOutline" size="sm" onClick={() => navigate("/dashboard")}>
-                Go to Dashboard
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="heroOutline" size="sm" onClick={() => navigate("/dashboard")} className="hidden xs:inline-flex">
+                  Go to Dashboard
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => { logout(); navigate("/login"); }} className="text-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                  Logout
+                </Button>
+              </div>
             ) : (
               <>
                 <Button variant="ghost" size="sm" onClick={() => navigate("/login")} className="text-foreground hover:bg-secondary">

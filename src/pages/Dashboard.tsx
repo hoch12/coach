@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Dumbbell, Utensils, Brain, BarChart3, User, LogOut,
-  ChevronRight, Flame, Droplets, Moon, TrendingUp, Users, MessageCircle, Calendar
+  Flame, TrendingUp, Moon, Calendar, MessageCircle, Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GeneratedPlan } from "@/types/onboarding";
@@ -156,36 +156,73 @@ const Dashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-screen">
         {/* Top bar */}
-        <header className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-          <div>
-            <h1 className="text-xl font-display font-bold">
-              {navItems.find((n) => n.id === activeTab)?.label} Plan
-            </h1>
-            <p className="text-sm text-muted-foreground">Your personalized program</p>
+        <header className="flex flex-col border-b border-border/50 sticky top-0 bg-background/80 backdrop-blur-md z-30">
+          <div className="flex items-center justify-between px-6 py-4">
+            <div>
+              <h1 className="text-xl font-display font-bold">
+                {navItems.find((n) => n.id === activeTab)?.label} Plan
+              </h1>
+              <p className="text-sm text-muted-foreground">Your personalized program</p>
+            </div>
+
+            {/* Desktop Logout/Profile */}
+            <div className="hidden md:flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/profile")}
+                className="text-muted-foreground"
+              >
+                <User className="h-4 w-4 mr-2" />
+                Profile
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { logout(); navigate("/login"); }}
+                className="text-destructive hover:bg-destructive/10"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
 
           {/* Mobile nav */}
-          <div className="flex md:hidden gap-1 overflow-x-auto no-scrollbar py-1">
-            {navItems.map((item) => (
+          <div className="flex md:hidden items-center justify-between gap-2 px-6 py-2 border-t border-border/10 bg-secondary/10">
+            <div className="flex gap-1 overflow-x-auto no-scrollbar py-1">
+              {navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`p-2 rounded-lg transition-colors flex-shrink-0 ${activeTab === item.id
+                    ? "bg-primary/20 text-primary border border-primary/30"
+                    : "text-muted-foreground"
+                    }`}
+                  title={item.label}
+                >
+                  <item.icon className="h-5 w-5" />
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1 border-l border-border/20 pl-2">
               <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`p-2.5 rounded-lg transition-colors flex-shrink-0 ${activeTab === item.id
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground"
-                  }`}
+                onClick={() => navigate("/profile")}
+                className="p-2 rounded-lg text-muted-foreground hover:text-primary transition-colors"
+                title="Profile"
               >
-                <item.icon className="h-5 w-5" />
+                <User className="h-5 w-5" />
               </button>
-            ))}
-            <button
-              onClick={() => navigate("/profile")}
-              className="p-2.5 rounded-lg transition-colors text-muted-foreground flex-shrink-0"
-            >
-              <User className="h-5 w-5" />
-            </button>
+              <button
+                onClick={() => { logout(); navigate("/login"); }}
+                className="p-2 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
+                title="Logout"
+              >
+                <LogOut className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </header>
 
@@ -198,7 +235,7 @@ const Dashboard = () => {
         </div>
 
         {/* Tab content */}
-        <div className="flex-1 px-6 py-6">
+        <div className="flex-1 px-6 py-6 overflow-y-auto">
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, y: 10 }}

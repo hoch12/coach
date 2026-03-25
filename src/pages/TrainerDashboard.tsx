@@ -227,16 +227,31 @@ export default function TrainerDashboard() {
                 <header className="px-4 md:px-8 py-4 md:py-6 border-b border-border/50 flex flex-col md:flex-row gap-4 justify-between items-center bg-card/30 backdrop-blur-md sticky top-0 z-10">
                     <div className="flex w-full md:w-auto items-center justify-between">
                         <h1 className="text-xl md:text-2xl font-display font-bold">Trainer Dashboard</h1>
-                        <div className="flex md:hidden gap-1">
+                        <div className="flex md:hidden gap-1 items-center border-l border-border/50 pl-2 ml-1">
                             {navItems.map(item => (
                                 <button
                                     key={item.id}
                                     onClick={() => setActiveTab(item.id)}
                                     className={`p-2 rounded-lg transition-colors ${activeTab === item.id ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+                                    title={item.label}
                                 >
                                     <item.icon className="h-5 w-5" />
                                 </button>
                             ))}
+                            <button
+                                onClick={() => setIsProfileOpen(true)}
+                                className="p-2 rounded-lg text-muted-foreground hover:text-primary transition-colors"
+                                title="My Profile"
+                            >
+                                <User className="h-5 w-5" />
+                            </button>
+                            <button
+                                onClick={() => { logout(); navigate("/login"); }}
+                                className="p-2 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
+                                title="Sign Out"
+                            >
+                                <LogOut className="h-5 w-5" />
+                            </button>
                         </div>
                     </div>
                     <div className="flex items-center gap-3 w-full md:w-auto justify-end">

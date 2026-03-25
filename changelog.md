@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.2] - 2026-03-25
+### Fixed
+- Critical JSX syntax errors in `Admin.tsx` and `Dashboard.tsx` causing build failures.
+- Navigation entrapment in Onboarding for unauthenticated states.
+- Horizontal scrolling on mobile in Admin panel (User/Trainer management tables replaced with cards).
+- Mobile navigation accessibility (Logout/Profile buttons added to all responsive headers).
+- Missing Logout button on Landings page for authenticated users.
+
 ## [2.3.1] - 2026-03-25
 ### Fixed
 - Support message routing bug where Admin messages occasionally reached trainers.

@@ -232,23 +232,23 @@ const AdminPanel = () => {
     return (
         <div className="min-h-screen bg-background p-6">
             <div className="max-w-4xl mx-auto space-y-6">
-                <header className="flex items-center justify-between">
-                    <Button variant="ghost" onClick={() => navigate("/dashboard")} className="pl-0 text-muted-foreground">
+                <header className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <Button variant="ghost" onClick={() => navigate("/dashboard")} className="pl-0 text-muted-foreground self-start">
                         <ArrowLeft className="mr-2 h-4 w-4" />
                         Back to Dashboard
                     </Button>
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <Users className="h-5 w-5 text-accent" />
-                            <span className="font-semibold text-accent hidden sm:inline">Admin Mode enabled</span>
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <div className="flex items-center gap-2 mr-2">
+                            <Users className="h-4 w-4 text-accent" />
+                            <span className="font-semibold text-accent text-xs sm:text-sm hidden xs:inline">Admin Mode</span>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => setIsProfileOpen(true)} className="text-muted-foreground hover:bg-secondary">
-                            <User className="h-4 w-4 mr-2" />
-                            My Profile
+                        <Button variant="ghost" size="sm" onClick={() => setIsProfileOpen(true)} className="text-muted-foreground hover:bg-secondary px-2">
+                            <User className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">My Profile</span>
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => { logout(); navigate("/login"); }} className="text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors">
-                            <LogOut className="h-4 w-4 mr-2" />
-                            Logout
+                        <Button variant="ghost" size="sm" onClick={() => { logout(); navigate("/login"); }} className="text-destructive hover:bg-destructive/10 px-2 transition-colors">
+                            <LogOut className="h-4 w-4 sm:mr-2" />
+                            <span className="hidden sm:inline">Logout</span>
                         </Button>
                     </div>
                 </header>
@@ -331,9 +331,10 @@ const AdminPanel = () => {
                             <CardHeader>
                                 <CardTitle>Existing Trainers</CardTitle>
                             </CardHeader>
-                            <CardContent>
-                                <div className="rounded-md border border-border/50 overflow-x-auto">
-                                    <table className="min-w-[600px] w-full text-sm text-left">
+                            <CardContent className="p-0 sm:p-6">
+                                {/* Desktop View */}
+                                <div className="hidden md:block rounded-md border border-border/50 overflow-x-auto">
+                                    <table className="w-full text-sm text-left">
                                         <thead className="bg-secondary/50 text-muted-foreground text-xs uppercase px-4 py-3 border-b border-border/50">
                                             <tr>
                                                 <th className="px-4 py-3 font-medium">Username</th>
@@ -343,9 +344,16 @@ const AdminPanel = () => {
                                         <tbody className="divide-y divide-border/50">
                                             {trainers.map(t => (
                                                 <tr key={t.id} className="hover:bg-secondary/30 transition-colors">
-                                                    <td className="px-4 py-3 font-medium">{t.username}</td>
+                                                    <td className="px-4 py-3 font-medium">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center overflow-hidden border border-border/50">
+                                                                {t.profile_image ? <img src={t.profile_image} className="h-full w-full object-cover" /> : <span className="text-xs font-bold text-muted-foreground">{t.username[0].toUpperCase()}</span>}
+                                                            </div>
+                                                            {t.username}
+                                                        </div>
+                                                    </td>
                                                     <td className="px-4 py-3 text-right">
-                                                        <Button variant="ghost" size="sm" onClick={() => deleteUser(t.id)} className="text-destructive">
+                                                        <Button variant="ghost" size="sm" onClick={() => deleteUser(t.id)} className="text-destructive transition-colors">
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
                                                     </td>
@@ -354,21 +362,40 @@ const AdminPanel = () => {
                                         </tbody>
                                     </table>
                                 </div>
+                                {/* Mobile View */}
+                                <div className="md:hidden space-y-4 px-4 pb-4">
+                                    {trainers.map(t => (
+                                        <div key={t.id} className="p-4 rounded-xl bg-secondary/20 border border-border/50 space-y-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden border border-border/50 shadow-sm">
+                                                    {t.profile_image ? <img src={t.profile_image} className="h-full w-full object-cover" /> : <span className="font-bold">{t.username[0].toUpperCase()}</span>}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold">{t.username}</p>
+                                                    <p className="text-xs text-muted-foreground">ID: {t.id}</p>
+                                                </div>
+                                            </div>
+                                            <div className="pt-2 border-t border-border/50 text-right">
+                                                <Button variant="ghost" size="sm" onClick={() => deleteUser(t.id)} className="text-destructive font-bold text-xs uppercase">Delete</Button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </CardContent>
                         </Card>
                     </div>
                 )}
 
                 {activeTab === "users" && (
-
                     <Card className="bg-card/50 border-accent/30 backdrop-blur-sm">
                         <CardHeader>
                             <CardTitle>User Management</CardTitle>
                             <CardDescription>View and manage all registered accounts on the platform</CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <div className="rounded-md border border-border/50 overflow-x-auto">
-                                <table className="min-w-[700px] w-full text-sm text-left">
+                        <CardContent className="p-0 sm:p-6">
+                            {/* Desktop View */}
+                            <div className="hidden md:block rounded-md border border-border/50 overflow-x-auto">
+                                <table className="w-full text-sm text-left">
                                     <thead className="bg-secondary/50 text-muted-foreground text-xs uppercase px-4 py-3 border-b border-border/50">
                                         <tr>
                                             <th className="px-4 py-3 font-medium">ID</th>
@@ -435,13 +462,62 @@ const AdminPanel = () => {
                                                 </td>
                                             </tr>
                                         ))}
-                                        {users.length === 0 && (
-                                            <tr>
-                                                <td colSpan={4} className="text-center py-8 text-muted-foreground">No users found</td>
-                                            </tr>
-                                        )}
                                     </tbody>
                                 </table>
+                            </div>
+                            {/* Mobile View */}
+                            <div className="md:hidden space-y-4 px-4 pb-4">
+                                {users.map(u => (
+                                    <div key={u.id} className="p-4 rounded-xl bg-secondary/20 border border-border/50 space-y-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden border border-border/50 shadow-sm">
+                                                {u.profile_image ? <img src={u.profile_image} className="h-full w-full object-cover" /> : <span className="font-bold">{u.username[0].toUpperCase()}</span>}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold">{u.username}</p>
+                                                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{u.role}</p>
+                                            </div>
+                                        </div>
+
+                                        {u.role === 'user' && (
+                                            <div className="flex flex-col gap-2 pt-2 border-t border-border/20">
+                                                <p className="text-[10px] uppercase font-bold text-muted-foreground">Assign Trainer</p>
+                                                <div className="flex gap-2">
+                                                    <select
+                                                        className={`flex-1 text-xs bg-background border rounded px-2 py-1 ${u.trainer_id ? 'border-primary/50 text-primary' : 'border-border'}`}
+                                                        defaultValue={u.trainer_id || ""}
+                                                        id={`trainer-select-mob-${u.id}`}
+                                                    >
+                                                        <option value="">No Trainer</option>
+                                                        {trainers.map(t => <option key={t.id} value={t.id}>{t.username}</option>)}
+                                                    </select>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-8 px-3 text-xs"
+                                                        onClick={() => {
+                                                            const sel = document.getElementById(`trainer-select-mob-${u.id}`) as HTMLSelectElement;
+                                                            assignTrainer(u.id, parseInt(sel.value));
+                                                        }}
+                                                    >
+                                                        Set
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                                            <span className="text-[10px] text-muted-foreground font-mono">ID: {u.id}</span>
+                                            <div className="flex gap-1">
+                                                <Button size="sm" variant="ghost" onClick={() => viewUserDetails(u)} className="h-8 text-accent font-bold text-xs uppercase">Details</Button>
+                                                {u.id !== user?.id && (
+                                                    <Button size="sm" variant="ghost" className="h-8 text-destructive font-bold text-xs uppercase" onClick={() => deleteUser(u.id)}>Delete</Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {users.length === 0 && <p className="text-center py-8 text-muted-foreground">No users found</p>}
                             </div>
                         </CardContent>
                     </Card>
@@ -603,8 +679,8 @@ const AdminPanel = () => {
                         </div>
                     </DialogContent>
                 </Dialog>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 

@@ -152,14 +152,25 @@ const Onboarding = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-        <button onClick={() => navigate("/")} className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
-          <Dumbbell className="h-6 w-6 text-primary" />
-          <span className="font-display font-bold">Coach-E</span>
-        </button>
-        <span className="text-sm text-muted-foreground">
-          Step {step + 1} of {STEPS.length}
-        </span>
+      <header className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-border/50 bg-card/30 backdrop-blur-md sticky top-0 z-20">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate("/")} className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
+            <Dumbbell className="h-6 w-6 text-primary" />
+            <span className="font-display font-bold hidden sm:inline">Coach-E</span>
+          </button>
+          <span className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">
+            Step {step + 1} of {STEPS.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => {
+            const { logout } = useAuth();
+            logout();
+            navigate("/login");
+          }}>
+            Log Out
+          </Button>
+        </div>
       </header>
 
       {/* Progress Bar */}
