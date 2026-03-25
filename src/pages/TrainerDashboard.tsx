@@ -208,7 +208,12 @@ export default function TrainerDashboard() {
                 </nav>
                 <div className="p-3 border-t border-border/50 space-y-1">
                     <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" onClick={() => setIsProfileOpen(true)}>
-                        <User className="h-4 w-4 mr-2" /> My Profile
+                        {user?.profile_image ? (
+                            <img src={user.profile_image} alt="Avatar" className="h-4 w-4 rounded-full object-cover mr-2" />
+                        ) : (
+                            <User className="h-4 w-4 mr-2" />
+                        )}
+                        My Profile
                     </Button>
                     <Button variant="ghost" className="w-full justify-start text-destructive hover:bg-destructive/10 transition-colors" onClick={() => { logout(); navigate("/login"); }}>
                         <LogOut className="h-4 w-4 mr-2" /> Sign Out
@@ -225,8 +230,12 @@ export default function TrainerDashboard() {
                             <p className="text-sm font-medium">{user?.username}</p>
                             <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
                         </div>
-                        <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                            {user?.username[0].toUpperCase()}
+                        <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border border-primary/20">
+                            {user?.profile_image ? (
+                                <img src={user.profile_image} alt="Avatar" className="h-full w-full object-cover" />
+                            ) : (
+                                <span className="text-primary font-bold">{user?.username[0].toUpperCase()}</span>
+                            )}
                         </div>
                     </div>
                 </header>

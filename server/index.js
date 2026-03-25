@@ -65,7 +65,7 @@ app.post('/api/auth/login', (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET_KEY, { expiresIn: '24h' });
-    res.json({ token, user: { id: user.id, username: user.username, role: user.role, trainer_id: user.trainer_id } });
+    res.json({ token, user: { id: user.id, username: user.username, role: user.role, trainer_id: user.trainer_id, profile_image: user.profile_image } });
 });
 
 app.post('/api/auth/change-password', authenticateToken, (req, res) => {
@@ -79,6 +79,31 @@ app.post('/api/auth/change-password', authenticateToken, (req, res) => {
     const hashedNewPassword = bcrypt.hashSync(newPassword, 10);
     db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedNewPassword, req.user.id);
     res.json({ success: true });
+});
+
+app.put('/api/user/settings', authenticateToken, (req, res) => {
+    const { username, profile_image } = req.body;
+
+    try {
+        if (username) {
+            // Check if username taken by someone else
+            const existing = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.user.id);
+            if (existing) {
+                return res.status(400).json({ error: 'Username already taken' });
+            }
+            db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, req.user.id);
+        }
+
+        if (profile_image !== undefined) {
+            db.prepare('UPDATE users SET profile_image = ? WHERE id = ?').run(profile_image, req.user.id);
+        }
+
+        const updatedUser = db.prepare('SELECT id, username, role, trainer_id, profile_image FROM users WHERE id = ?').get(req.user.id);
+        res.json({ success: true, user: updatedUser });
+    } catch (e) {
+        console.error("Settings update error:", e);
+        res.status(500).json({ error: 'Failed to update settings' });
+    }
 });
 
 // --- Profile Routes ---

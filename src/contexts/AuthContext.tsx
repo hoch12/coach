@@ -5,6 +5,7 @@ export interface User {
     username: string;
     role: string;
     trainer_id?: number | null;
+    profile_image?: string | null;
 }
 
 interface AuthContextType {
@@ -12,6 +13,7 @@ interface AuthContextType {
     token: string | null;
     login: (token: string, user: User) => void;
     logout: () => void;
+    updateUser: (newUser: Partial<User>) => void;
     isLoading: boolean;
 }
 
@@ -47,8 +49,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(null);
     };
 
+    const updateUser = (newUser: Partial<User>) => {
+        if (!user) return;
+        const updatedUser = { ...user, ...newUser };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        setUser(updatedUser);
+    };
+
     return (
-        <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+        <AuthContext.Provider value={{ user, token, login, logout, updateUser, isLoading }}>
             {children}
         </AuthContext.Provider>
     );

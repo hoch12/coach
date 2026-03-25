@@ -12,11 +12,17 @@ import { toast } from "sonner";
 import { getApiUrl } from "@/lib/utils";
 
 const Profile = () => {
-    const { user, token, logout } = useAuth();
+    const { user, token, logout, updateUser } = useAuth();
     const navigate = useNavigate();
     const [profile, setProfile] = useState<OnboardingData | null>(null);
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState<Partial<OnboardingData>>({});
+
+    const [publicSettings, setPublicSettings] = useState({
+        username: user?.username || "",
+        profile_image: user?.profile_image || ""
+    });
+    const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
 
     useEffect(() => {
         fetchProfile();
@@ -107,6 +113,49 @@ const Profile = () => {
         }
     };
 
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 1024 * 1024) { // 1MB limit for Base64 storage
+            toast.error("Image too large (max 1MB)");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setPublicSettings(prev => ({ ...prev, profile_image: reader.result as string }));
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const handleUpdateSettings = async () => {
+        setIsUpdatingSettings(true);
+        try {
+            const res = await fetch(getApiUrl("/api/user/settings"), {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify(publicSettings)
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                updateUser(data.user);
+                toast.success("Public profile updated!");
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Update failed");
+            }
+        } catch (e) {
+            toast.error("Network error");
+        } finally {
+            setIsUpdatingSettings(false);
+        }
+    };
+
     if (user?.role === "admin" || user?.role === "trainer") {
         return (
             <div className="min-h-screen bg-background p-6">
@@ -146,6 +195,35 @@ const Profile = () => {
                                 </form>
                             </div>
 
+                            <div className="pt-4 border-t border-border/50">
+                                <h3 className="text-lg font-bold mb-4">Public Profile</h3>
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border-2 border-primary/30">
+                                            {publicSettings.profile_image ? (
+                                                <img src={publicSettings.profile_image} alt="Avatar" className="h-full w-full object-cover" />
+                                            ) : (
+                                                <span className="text-2xl font-bold text-primary">{user.username[0].toUpperCase()}</span>
+                                            )}
+                                        </div>
+                                        <div className="flex-1 space-y-2">
+                                            <Label htmlFor="avatar-upload" className="cursor-pointer inline-flex items-center px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm transition-colors">
+                                                Change Photo
+                                            </Label>
+                                            <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                            <p className="text-[10px] text-muted-foreground uppercase">Recommended: Square image, max 1MB</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Username</Label>
+                                        <Input value={publicSettings.username} onChange={e => setPublicSettings({ ...publicSettings, username: e.target.value })} />
+                                    </div>
+                                    <Button className="w-full bg-primary/20 text-primary hover:bg-primary/30" onClick={handleUpdateSettings} disabled={isUpdatingSettings}>
+                                        {isUpdatingSettings ? "Updating..." : "Save Public Settings"}
+                                    </Button>
+                                </div>
+                            </div>
+
                             {user.role === "admin" && (
                                 <Button variant="outline" onClick={() => navigate("/admin")} className="w-full">
                                     Go to Admin Panel
@@ -180,7 +258,32 @@ const Profile = () => {
                             {isEditing ? <><Check className="mr-2 h-4 w-4" /> Save</> : <><Edit2 className="mr-2 h-4 w-4" /> Edit</>}
                         </Button>
                     </CardHeader>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-6">
+                        <div className="flex items-center gap-4 py-4 border-b border-border/50">
+                            <div className="h-20 w-20 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border-2 border-primary/30">
+                                {publicSettings.profile_image ? (
+                                    <img src={publicSettings.profile_image} alt="Avatar" className="h-full w-full object-cover" />
+                                ) : (
+                                    <span className="text-2xl font-bold text-primary">{user?.username[0].toUpperCase()}</span>
+                                )}
+                            </div>
+                            <div className="flex-1 space-y-2">
+                                <Label htmlFor="client-avatar-upload" className="cursor-pointer inline-flex items-center px-4 py-2 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 text-sm transition-colors">
+                                    Change Photo
+                                </Label>
+                                <input id="client-avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                <div className="space-y-1">
+                                    <Label className="text-xs text-muted-foreground">Username</Label>
+                                    <div className="flex gap-2">
+                                        <Input size={1} className="h-8 max-w-[200px]" value={publicSettings.username} onChange={e => setPublicSettings({ ...publicSettings, username: e.target.value })} />
+                                        <Button size="sm" className="h-8" onClick={handleUpdateSettings} disabled={isUpdatingSettings}>
+                                            {isUpdatingSettings ? "Wait..." : "Save"}
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         {profile.appVersion !== "1.3.0" && (
                             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 flex items-start gap-3 mb-4 text-destructive">
                                 <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />

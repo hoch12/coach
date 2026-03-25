@@ -124,7 +124,11 @@ const Dashboard = () => {
             onClick={() => navigate("/profile")}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
-            <User className="h-4 w-4" />
+            {user?.profile_image ? (
+              <img src={user.profile_image} alt="Avatar" className="h-4 w-4 rounded-full object-cover" />
+            ) : (
+              <User className="h-4 w-4" />
+            )}
             My Profile
           </button>
 

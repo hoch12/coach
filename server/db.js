@@ -10,6 +10,7 @@ db.exec(`
     password TEXT NOT NULL,
     role TEXT DEFAULT 'user',
     trainer_id INTEGER,
+    profile_image TEXT,
     FOREIGN KEY(trainer_id) REFERENCES users(id) ON DELETE SET NULL
   );
 
@@ -97,6 +98,12 @@ try {
 
 try {
   db.exec("ALTER TABLE support_tickets ADD COLUMN trainer_id INTEGER");
+} catch (e) {
+  // column already exists
+}
+
+try {
+  db.exec("ALTER TABLE users ADD COLUMN profile_image TEXT");
 } catch (e) {
   // column already exists
 }

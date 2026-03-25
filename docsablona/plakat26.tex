@@ -1,0 +1,123 @@
+% !TeX program = lualatex
+\documentclass[final]{beamer}
+
+% A0, portrét, větší písmo
+\usepackage[size=a0,orientation=portrait,scale=1.3]{beamerposter}
+
+% Jazyk a fonty
+\usepackage[czech]{babel}
+\usepackage{fontspec}
+\setsansfont{Inter} % Using Inter for a modern look if available, otherwise fallback
+
+% Typografie a grafika
+\usepackage[final,protrusion=false,expansion=true,nopatch]{microtype}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{qrcode}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.65em}
+\linespread{1.15}
+
+% Okraje pro poster
+\usepackage[margin=4cm]{geometry}
+
+% Multicol
+\usepackage{multicol}
+\setlength{\columnsep}{3cm}
+
+% Barvy
+\definecolor{coachBlue}{HTML}{1459A6}
+\definecolor{coachDark}{HTML}{0F172A}
+\definecolor{coachWhite}{HTML}{FFFFFF}
+
+% Beamer barvy
+\setbeamercolor{normal text}{fg=coachDark,bg=coachWhite}
+
+% Nadpisy
+\newcommand{\Heading}[1]{%
+  \vspace{1.5em}%
+  {\color{coachBlue}\bfseries\fontsize{48}{60}\selectfont #1}\par
+  \vspace{0.8em}%
+}
+
+\begin{document}
+
+\begin{frame}[t]
+
+  % --- HLAVIČKA ---
+  \begin{center}
+    {\color{coachBlue}\bfseries\fontsize{90}{110}\selectfont Coach-E: Personalizovaná fitness a nutriční platforma}\par
+    \vspace{1.5cm}
+    {\bfseries\fontsize{60}{70}\selectfont Dominik Hoch}\par
+    \vspace{0.8cm}
+    {\fontsize{40}{50}\selectfont Webové aplikace • Fitness a zdraví • Full-stack vývoj}\par
+    \vspace{2cm}
+  \end{center}
+
+  % --- ABSTRAKT ---
+  \begin{center}
+    \begin{minipage}{0.8\paperwidth}
+      \Heading{Abstrakt}
+      {\fontsize{32}{40}\selectfont
+      Coach-E je komplexní webová aplikace navržená pro moderní fitness trenéry a jejich klienty. Cílem projektu je zautomatizovat a personalizovat proces tvorby tréninkových a výživových plánů. Systém využívá pokročilé algoritmy pro zpracování vstupních dat od klientů (zranění, alergie, cíle) a generuje optimalizované výstupy. Součástí je také rezervační systém a přímá komunikace, což z Coach-E činí ultimátní nástroj pro správu fitness kariéry.
+      }
+    \end{minipage}
+  \end{center}
+
+  \vspace{3cm}
+  \noindent\rule{\linewidth}{4pt}
+  \vspace{2cm}
+
+  % --- HLAVNÍ OBSAH ---
+  \begin{multicols}{2}
+
+    \Heading{Motivace a cíle}
+    V dnešní uspěchané době je pro trenéry náročné udržet individuální přístup ke každému klientovi. Coach-E řeší tento problém digitální transformací celého workflow. Hlavní cíle byly:
+    \begin{itemize}
+        \item Automatizace rutinních úkolů trenéra.
+        \item Zajištění maximální personalizace pro klienta.
+        \item Moderní a intuitivní uživatelské rozhraní.
+    \end{itemize}
+
+    \Heading{Technologický stack}
+    Projekt byl vyvinut jako robustní full-stack aplikace:
+    \begin{itemize}
+        \item \textbf{Frontend:} Vite, React, TypeScript – pro rychlé a interaktivní UI.
+        \item \textbf{Styling:} Tailwind CSS a Framer Motion pro prémiový vzhled a animace.
+        \item \textbf{Backend:} Node.js, Express – spolehlivé API.
+        \item \textbf{Databáze:} SQLite – efektivní správa dat.
+    \end{itemize}
+
+    \columnbreak
+
+    \Heading{Klíčové vlastnosti}
+    \begin{itemize}
+        \item \textbf{Dynamické generování plánů:} Plány se automaticky přizpůsobují alergiím, zraněním a preferencím klienta.
+        \item \textbf{Multi-role systém:} Dedikované rozhraní pro Administrátora, Trenéra a Klienta.
+        \item \textbf{Rezervační a messaging modul:} Integrovaný kalendář pro tréninky a chat.
+        \item \textbf{Analytický dashboard:} Sledování pokroku a statistik v reálném čase.
+    \end{itemize}
+
+    \Heading{Závěr}
+    Coach-E úspěšně propojuje svět IT a fitness. Projekt prokázal, že moderní webové technologie mohou výrazně zvýšit kvalitu a efektivitu ve sportovních službách. V budoucnu je plánováno rozšíření o mobilní aplikaci a integraci nositelné elektroniky.
+
+    \vspace{4cm}
+    \begin{center}
+      \qrcode[height=15cm]{https://hoch12.github.io/coach/} \\
+      \vspace{0.5cm}
+      {\small Skenujte pro přístup k repozitáři}
+    \end{center}
+
+  \end{multicols}
+
+  % --- PATIČKA ---
+  \vfill
+  \begin{center}
+    \noindent\rule{0.5\linewidth}{1pt} \\
+    \vspace{0.5cm}
+    {\small © 2026 Dominik Hoch | SPŠE Ječná | Vytvořeno v březnu 2026}
+  \end{center}
+
+\end{frame}
+
+\end{document}
