@@ -167,12 +167,12 @@ const Dashboard = () => {
           </div>
 
           {/* Mobile nav */}
-          <div className="flex md:hidden gap-1">
+          <div className="flex md:hidden gap-1 overflow-x-auto no-scrollbar py-1">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`p-2.5 rounded-lg transition-colors ${activeTab === item.id
+                className={`p-2.5 rounded-lg transition-colors flex-shrink-0 ${activeTab === item.id
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground"
                   }`}
@@ -180,6 +180,12 @@ const Dashboard = () => {
                 <item.icon className="h-5 w-5" />
               </button>
             ))}
+            <button
+              onClick={() => navigate("/profile")}
+              className="p-2.5 rounded-lg transition-colors text-muted-foreground flex-shrink-0"
+            >
+              <User className="h-5 w-5" />
+            </button>
           </div>
         </header>
 

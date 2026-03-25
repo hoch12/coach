@@ -331,8 +331,8 @@ const AdminPanel = () => {
                                 <CardTitle>Existing Trainers</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="rounded-md border border-border/50 overflow-hidden">
-                                    <table className="w-full text-sm text-left">
+                                <div className="rounded-md border border-border/50 overflow-x-auto">
+                                    <table className="min-w-[600px] w-full text-sm text-left">
                                         <thead className="bg-secondary/50 text-muted-foreground text-xs uppercase px-4 py-3 border-b border-border/50">
                                             <tr>
                                                 <th className="px-4 py-3 font-medium">Username</th>
@@ -366,8 +366,8 @@ const AdminPanel = () => {
                             <CardDescription>View and manage all registered accounts on the platform</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="rounded-md border border-border/50 overflow-hidden">
-                                <table className="w-full text-sm text-left">
+                            <div className="rounded-md border border-border/50 overflow-x-auto">
+                                <table className="min-w-[700px] w-full text-sm text-left">
                                     <thead className="bg-secondary/50 text-muted-foreground text-xs uppercase px-4 py-3 border-b border-border/50">
                                         <tr>
                                             <th className="px-4 py-3 font-medium">ID</th>

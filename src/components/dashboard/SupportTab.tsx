@@ -14,13 +14,21 @@ interface Ticket {
     status: "open" | "closed";
     created_at: string;
     replied_at: string | null;
+    trainer_id: number | null;
 }
 
 const SupportTab = () => {
-    const { token } = useAuth();
+    const { token, user } = useAuth();
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [newMessage, setNewMessage] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [recipient, setRecipient] = useState<"coach" | "admin">("coach");
+
+    useEffect(() => {
+        if (user && !user.trainer_id) {
+            setRecipient("admin");
+        }
+    }, [user]);
 
     useEffect(() => {
         fetchTickets();
@@ -52,11 +60,14 @@ const SupportTab = () => {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ message: newMessage }),
+                body: JSON.stringify({
+                    message: newMessage,
+                    toAdmin: recipient === "admin"
+                }),
             });
 
             if (res.ok) {
-                toast.success("Message sent! An admin will reply shortly.");
+                toast.success(recipient === "admin" ? "Message sent to Administration!" : "Message sent to your Coach!");
                 setNewMessage("");
                 fetchTickets();
             } else {
@@ -87,17 +98,42 @@ const SupportTab = () => {
                     </CardTitle>
                     <CardDescription>We typically reply within 24 hours.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                        <div className="flex p-1 bg-secondary/50 rounded-lg w-full sm:w-auto">
+                            <button
+                                type="button"
+                                onClick={() => setRecipient("coach")}
+                                disabled={!user?.trainer_id}
+                                className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm transition-all ${recipient === "coach" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"}`}
+                            >
+                                Váš trenér
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setRecipient("admin")}
+                                className={`flex-1 sm:flex-none px-4 py-2 rounded-md text-sm transition-all ${recipient === "admin" ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                            >
+                                Administrátor
+                            </button>
+                        </div>
+                        {!user?.trainer_id && recipient === "admin" && (
+                            <p className="text-xs text-muted-foreground italic">
+                                Nemáte přiřazeného trenéra, Vaše zpráva bude směřována na podporu.
+                            </p>
+                        )}
+                    </div>
+
                     <form onSubmit={handleSubmit} className="flex gap-3">
                         <Input
-                            placeholder="Type your question here..."
+                            placeholder={recipient === "admin" ? "Napište zprávu podpoře..." : "Napište zprávu trenérovi..."}
                             value={newMessage}
                             onChange={(e) => setNewMessage(e.target.value)}
                             className="flex-1 bg-background"
                             disabled={isSubmitting}
                         />
                         <Button type="submit" variant="hero" disabled={isSubmitting || !newMessage.trim()}>
-                            {isSubmitting ? "Sending..." : "Send"}
+                            {isSubmitting ? "Odesílám..." : "Odeslat"}
                             <Send className="ml-2 h-4 w-4" />
                         </Button>
                     </form>
@@ -141,7 +177,7 @@ const SupportTab = () => {
                                             <>
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <span className="font-semibold text-sm rounded-full bg-primary/20 text-primary px-3 py-0.5 border border-primary/20 flex items-center gap-1">
-                                                        <CheckCircle className="h-3 w-3" /> Coach Reply
+                                                        <CheckCircle className="h-3 w-3" /> {ticket.trainer_id === null ? "Admin Reply" : "Coach Reply"}
                                                     </span>
                                                     <span className="text-xs text-muted-foreground">
                                                         {ticket.replied_at ? new Date(ticket.replied_at).toLocaleString() : ""}

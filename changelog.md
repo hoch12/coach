@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-03-25
+### Added
+- Direct messaging to Administration for all users.
+- Automatic routing to Admin support for users without assigned coaches.
+- Mobile-responsive navigation for all Dashboards.
+- Improved table layouts and responsiveness for Admin panel.
+
 ## [2.2.0] - 2026-03-25
 ### Added
 - Profile picture (avatar) support for all users.

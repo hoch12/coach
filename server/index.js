@@ -260,15 +260,30 @@ app.get('/api/support', authenticateToken, (req, res) => {
     res.json(stmt.all(req.user.id));
 });
 
+app.get('/api/admin/support', authenticateToken, isAdmin, (req, res) => {
+    const stmt = db.prepare(`
+        SELECT s.*, u.username 
+        FROM support_tickets s 
+        JOIN users u ON s.user_id = u.id 
+        WHERE s.trainer_id IS NULL 
+        ORDER BY s.created_at DESC
+    `);
+    res.json(stmt.all());
+});
+
 app.post('/api/support', authenticateToken, (req, res) => {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
     // Find the user's trainer
     const user = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(req.user.id);
+    const { toAdmin } = req.body;
+
+    // If user wants to message admin OR has no trainer, trainer_id is null
+    const trainerId = toAdmin || !user?.trainer_id ? null : user.trainer_id;
 
     const stmt = db.prepare('INSERT INTO support_tickets (user_id, trainer_id, message) VALUES (?, ?, ?)');
-    const info = stmt.run(req.user.id, user ? user.trainer_id : null, message);
+    const info = stmt.run(req.user.id, trainerId, message);
     res.json({ success: true, id: info.lastInsertRowid });
 });
 
@@ -286,6 +301,17 @@ app.post('/api/support/:id/reply', authenticateToken, (req, res) => {
         UPDATE support_tickets 
         SET reply = ?, status = 'closed', replied_at = CURRENT_TIMESTAMP 
         WHERE id = ?
+    `);
+    stmt.run(reply, req.params.id);
+    res.json({ success: true });
+});
+
+app.post('/api/admin/support/:id/reply', authenticateToken, isAdmin, (req, res) => {
+    const { reply } = req.body;
+    const stmt = db.prepare(`
+        UPDATE support_tickets 
+        SET reply = ?, status = 'closed', replied_at = CURRENT_TIMESTAMP 
+        WHERE id = ? AND trainer_id IS NULL
     `);
     stmt.run(reply, req.params.id);
     res.json({ success: true });

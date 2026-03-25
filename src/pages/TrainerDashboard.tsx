@@ -223,9 +223,22 @@ export default function TrainerDashboard() {
 
             {/* Main */}
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className="px-8 py-6 border-b border-border/50 flex justify-between items-center bg-card/30 backdrop-blur-md">
-                    <h1 className="text-2xl font-display font-bold">Trainer Dashboard</h1>
-                    <div className="flex items-center gap-3">
+                <header className="px-4 md:px-8 py-4 md:py-6 border-b border-border/50 flex flex-col md:flex-row gap-4 justify-between items-center bg-card/30 backdrop-blur-md sticky top-0 z-10">
+                    <div className="flex w-full md:w-auto items-center justify-between">
+                        <h1 className="text-xl md:text-2xl font-display font-bold">Trainer Dashboard</h1>
+                        <div className="flex md:hidden gap-1">
+                            {navItems.map(item => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setActiveTab(item.id)}
+                                    className={`p-2 rounded-lg transition-colors ${activeTab === item.id ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+                                >
+                                    <item.icon className="h-5 w-5" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3 w-full md:w-auto justify-end">
                         <div className="text-right">
                             <p className="text-sm font-medium">{user?.username}</p>
                             <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
