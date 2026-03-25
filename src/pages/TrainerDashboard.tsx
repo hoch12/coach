@@ -41,7 +41,7 @@ interface Ticket {
 }
 
 export default function TrainerDashboard() {
-    const { user, token, logout } = useAuth();
+    const { user, token, logout, updateUser } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("clients");
     const [clients, setClients] = useState<Client[]>([]);
@@ -445,36 +445,78 @@ export default function TrainerDashboard() {
                 </Dialog>
 
                 <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
-                    <DialogContent className="max-w-md">
-                        <DialogHeader>
+                    <DialogContent className="max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden">
+                        <DialogHeader className="p-6 pb-2">
                             <DialogTitle>Můj profil: {user?.username}</DialogTitle>
                             <DialogDescription>Aktualizujte informace o svém veřejném profilu.</DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-6 pt-4">
-                            <div className="flex flex-col items-center gap-4 py-4">
-                                <div className="h-24 w-24 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border-2 border-primary/20 shadow-lg">
-                                    {user?.profile_image ? (
-                                        <img src={user.profile_image} alt="Avatar" className="h-full w-full object-cover" />
-                                    ) : (
-                                        <span className="text-3xl font-bold text-primary">{user?.username[0].toUpperCase()}</span>
-                                    )}
+
+                        <ScrollArea className="flex-1 px-6 pb-6">
+                            <div className="space-y-6 pt-2">
+                                <div className="flex flex-col items-center gap-4 py-4">
+                                    <div className="h-24 w-24 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border-2 border-primary/20 shadow-lg">
+                                        {user?.profile_image ? (
+                                            <img src={user.profile_image} alt="Avatar" className="h-full w-full object-cover" />
+                                        ) : (
+                                            <span className="text-3xl font-bold text-primary">{user?.username[0].toUpperCase()}</span>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col items-center gap-2">
+                                        <Input
+                                            type="file"
+                                            accept="image/*"
+                                            id="trainer-avatar-upload"
+                                            className="hidden"
+                                            onChange={async (e) => {
+                                                const file = e.target.files?.[0];
+                                                if (!file) return;
+                                                if (file.size > 10 * 1024 * 1024) {
+                                                    toast.error("Obrázek je příliš velký (max 10MB)");
+                                                    return;
+                                                }
+                                                const reader = new FileReader();
+                                                reader.onloadend = async () => {
+                                                    const base64 = reader.result as string;
+                                                    try {
+                                                        const res = await fetch(getApiUrl("/api/user/settings"), {
+                                                            method: "PUT",
+                                                            headers: {
+                                                                "Content-Type": "application/json",
+                                                                "Authorization": `Bearer ${token}`
+                                                            },
+                                                            body: JSON.stringify({ profile_image: base64 })
+                                                        });
+                                                        if (res.ok) {
+                                                            const data = await res.json();
+                                                            updateUser(data.user);
+                                                            toast.success("Profilová fotka aktualizována");
+                                                        }
+                                                    } catch (e) {
+                                                        toast.error("Chyba při nahrávání");
+                                                    }
+                                                };
+                                                reader.readAsDataURL(file);
+                                            }}
+                                        />
+                                        <Label htmlFor="trainer-avatar-upload" className="cursor-pointer">
+                                            <Button variant="outline" size="sm" asChild>
+                                                <span>Změnit fotku</span>
+                                            </Button>
+                                        </Label>
+                                    </div>
                                 </div>
-                                <div className="flex flex-col items-center gap-2">
-                                    <Input
-                                        type="file"
-                                        accept="image/*"
-                                        id="trainer-avatar-upload"
-                                        className="hidden"
-                                        onChange={async (e) => {
-                                            const file = e.target.files?.[0];
-                                            if (!file) return;
-                                            if (file.size > 10 * 1024 * 1024) {
-                                                toast.error("Obrázek je příliš velký (max 10MB)");
-                                                return;
-                                            }
-                                            const reader = new FileReader();
-                                            reader.onloadend = async () => {
-                                                const base64 = reader.result as string;
+
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label>Uživatelské jméno</Label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                id="trainer_username_edit_field"
+                                                defaultValue={user?.username}
+                                            />
+                                            <Button size="sm" onClick={async () => {
+                                                const val = (document.getElementById("trainer_username_edit_field") as HTMLInputElement).value;
+                                                if (!val || val === user?.username) return;
                                                 try {
                                                     const res = await fetch(getApiUrl("/api/user/settings"), {
                                                         method: "PUT",
@@ -482,83 +524,48 @@ export default function TrainerDashboard() {
                                                             "Content-Type": "application/json",
                                                             "Authorization": `Bearer ${token}`
                                                         },
-                                                        body: JSON.stringify({ profile_image: base64 })
+                                                        body: JSON.stringify({ username: val })
                                                     });
                                                     if (res.ok) {
                                                         const data = await res.json();
-                                                        useAuth().updateUser(data.user);
-                                                        toast.success("Profilová fotka aktualizována");
+                                                        updateUser(data.user);
+                                                        toast.success("Uživatelské jméno změněno");
+                                                    } else {
+                                                        const data = await res.json();
+                                                        toast.error(data.error || "Chyba při změně");
                                                     }
                                                 } catch (e) {
-                                                    toast.error("Chyba při nahrávání");
+                                                    toast.error("Chyba sítě");
                                                 }
-                                            };
-                                            reader.readAsDataURL(file);
-                                        }}
-                                    />
-                                    <Label htmlFor="trainer-avatar-upload" className="cursor-pointer">
-                                        <Button variant="outline" size="sm" asChild>
-                                            <span>Změnit fotku</span>
-                                        </Button>
-                                    </Label>
-                                </div>
-                            </div>
+                                            }}>Uložit</Button>
+                                        </div>
+                                    </div>
 
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label>Uživatelské jméno</Label>
-                                    <div className="flex gap-2">
-                                        <Input
-                                            id="trainer_username_edit"
-                                            defaultValue={user?.username}
-                                        />
-                                        <Button size="sm" onClick={async () => {
-                                            const val = (document.getElementById("trainer_username_edit") as HTMLInputElement).value;
-                                            if (!val || val === user?.username) return;
-                                            try {
-                                                const res = await fetch(getApiUrl("/api/user/settings"), {
-                                                    method: "PUT",
-                                                    headers: {
-                                                        "Content-Type": "application/json",
-                                                        "Authorization": `Bearer ${token}`
-                                                    },
-                                                    body: JSON.stringify({ username: val })
-                                                });
-                                                if (res.ok) {
-                                                    const data = await res.json();
-                                                    useAuth().updateUser(data.user);
-                                                    toast.success("Uživatelské jméno změněno");
-                                                } else {
-                                                    const data = await res.json();
-                                                    toast.error(data.error || "Chyba při změně");
-                                                }
-                                            } catch (e) {
-                                                toast.error("Chyba sítě");
-                                            }
-                                        }}>Uložit</Button>
+                                    <div className="border-t border-border/50 pt-4">
+                                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Změna hesla</h3>
+                                        <form onSubmit={handleChangePassword} className="space-y-4">
+                                            <div className="space-y-2">
+                                                <Label>Současné heslo</Label>
+                                                <Input type="password" value={passwordForm.old} onChange={e => setPasswordForm({ ...passwordForm, old: e.target.value })} required />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Nové heslo</Label>
+                                                <Input type="password" value={passwordForm.new} onChange={e => setPasswordForm({ ...passwordForm, new: e.target.value })} required />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Potvrdit nové heslo</Label>
+                                                <Input type="password" value={passwordForm.confirm} onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} required />
+                                            </div>
+                                            <Button type="submit" className="w-full">Aktualizovat heslo</Button>
+                                        </form>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-border/50">
+                                        <Button variant="outline" className="w-full" onClick={() => setIsProfileOpen(false)}>Zavřít</Button>
                                     </div>
                                 </div>
-
-                                <div className="border-t border-border/50 pt-4">
-                                    <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Změna hesla</h3>
-                                    <form onSubmit={handleChangePassword} className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label>Současné heslo</Label>
-                                            <Input type="password" value={passwordForm.old} onChange={e => setPasswordForm({ ...passwordForm, old: e.target.value })} required />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Nové heslo</Label>
-                                            <Input type="password" value={passwordForm.new} onChange={e => setPasswordForm({ ...passwordForm, new: e.target.value })} required />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label>Potvrdit nové heslo</Label>
-                                            <Input type="password" value={passwordForm.confirm} onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} required />
-                                        </div>
-                                        <Button type="submit" className="w-full">Aktualizovat heslo</Button>
-                                    </form>
-                                </div>
                             </div>
-                        </div>
+                        </ScrollArea>
                     </DialogContent>
                 </Dialog>
             </main>

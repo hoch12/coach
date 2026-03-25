@@ -211,7 +211,7 @@ const Profile = () => {
                                                 Change Photo
                                             </Label>
                                             <input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                                            <p className="text-[10px] text-muted-foreground uppercase">Recommended: Square image, max 1MB</p>
+                                            <p className="text-[10px] text-muted-foreground uppercase">Recommended: Square image, max 10MB</p>
                                         </div>
                                     </div>
                                     <div className="space-y-2">

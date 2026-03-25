@@ -52,7 +52,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const updateUser = (newUser: Partial<User>) => {
         if (!user) return;
         const updatedUser = { ...user, ...newUser };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
+        try {
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+        } catch (e) {
+            console.warn("Failed to save user to localStorage (likely quota exceeded)", e);
+        }
         setUser(updatedUser);
     };
 

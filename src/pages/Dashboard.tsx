@@ -77,19 +77,58 @@ const navItems = [
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const [plan, setPlan] = useState<GeneratedPlan | null>(null);
   const [activeTab, setActiveTab] = useState("training");
+  const [isPlanLoading, setIsPlanLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem("fitforge-plan");
-    if (!stored) {
-      navigate("/onboarding");
-      return;
-    }
-    setPlan(JSON.parse(stored));
-  }, [navigate]);
+    const fetchPlan = async () => {
+      if (!token) {
+        setIsPlanLoading(false);
+        return;
+      }
 
+      try {
+        const res = await fetch(getApiUrl("/api/plan"), {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data) {
+            const actualPlan = data.plan_data ? JSON.parse(data.plan_data) : data;
+            setPlan(actualPlan);
+            try {
+              localStorage.setItem("fitforge-plan", JSON.stringify(actualPlan));
+            } catch (e) { }
+          } else {
+            navigate("/onboarding");
+          }
+        } else {
+          const stored = localStorage.getItem("fitforge-plan");
+          if (stored) {
+            setPlan(JSON.parse(stored));
+          } else {
+            navigate("/onboarding");
+          }
+        }
+      } catch (e) {
+        const stored = localStorage.getItem("fitforge-plan");
+        if (stored) {
+          setPlan(JSON.parse(stored));
+        } else {
+          navigate("/onboarding");
+        }
+      } finally {
+        setIsPlanLoading(false);
+      }
+    };
+
+    fetchPlan();
+  }, [token, navigate]);
+
+  if (isPlanLoading) return <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">Loading your personalized plan...</div>;
   if (!plan) return null;
 
   return (
