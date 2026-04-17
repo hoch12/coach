@@ -11,6 +11,7 @@ import { OnboardingData, GeneratedPlan } from "@/types/onboarding";
 import { toast } from "sonner";
 import { getApiUrl } from "@/lib/utils";
 
+import { Badge } from "@/components/ui/badge";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface AdminUser {
@@ -30,6 +31,7 @@ interface SupportTicket {
     created_at: string;
     sender_id: number;
     replied_at: string | null;
+    user_role: string;
 }
 
 const AdminPanel = () => {
@@ -578,7 +580,12 @@ const AdminPanel = () => {
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex justify-between items-center mb-0.5">
-                                                            <span className="font-bold text-sm truncate">{lastMsg?.username}</span>
+                                                            <div className="flex items-center gap-2 truncate">
+                                                                <span className="font-bold text-sm truncate">{lastMsg?.username}</span>
+                                                                <Badge variant={lastMsg?.user_role === 'trainer' ? 'hero' : 'secondary'} className="text-[7px] px-1 py-0 h-3 leading-none uppercase font-black">
+                                                                    {lastMsg?.user_role === 'trainer' ? 'Trainer' : 'Client'}
+                                                                </Badge>
+                                                            </div>
                                                             {unread > 0 && <span className="bg-primary text-primary-foreground text-[8px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-primary/20">{unread}</span>}
                                                         </div>
                                                         <p className="text-[10px] text-muted-foreground truncate opacity-70 italic">"{lastMsg?.message}"</p>
@@ -599,7 +606,12 @@ const AdminPanel = () => {
                                             <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center font-bold text-[10px] text-primary">
                                                 {tickets.find(t => t.id === replyingTo)?.username[0].toUpperCase()}
                                             </div>
-                                            <span className="font-bold text-sm tracking-tight">{tickets.find(t => t.id === replyingTo)?.username}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-bold leading-none">{tickets.find(t => t.id === replyingTo)?.username}</span>
+                                                <span className="text-[8px] font-black uppercase tracking-tighter opacity-50">
+                                                    {tickets.find(t => t.id === replyingTo)?.user_role === 'trainer' ? 'Trainer Communication' : 'Client Communication'}
+                                                </span>
+                                            </div>
                                         </div>
                                         <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest opacity-50">{t('supportChannel', 'admin') || "Support Channel"}</span>
                                     </div>

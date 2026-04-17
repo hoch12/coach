@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.14.0] - 2026-04-17
+### Added
+- **Admin Inbox Visual Indicators**: Added "Trainer" and "Client" badges to conversation threads in the Admin support panel for easier identification.
+- **Improved Chat Header**: The active conversation in the Admin view now clearly indicates the role of the person being messaged.
+- **Enhanced Badge Component**: Added a `hero` variant to the `Badge` UI component using the brand's primary styling.
+
 ## [2.13.1] - 2026-04-17
 ### Fixed
 - **Sender Identification**: Fixed a type mismatch issue where client messages were incorrectly labeled as "Coach replies".
