@@ -339,12 +339,15 @@ app.get('/api/admin/support', authenticateToken, isAdmin, (req, res) => {
 });
 
 app.post('/api/support', authenticateToken, (req, res) => {
-    const { message } = req.body;
+    const { message, target } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
-    const userStmt = db.prepare('SELECT trainer_id FROM users WHERE id = ?');
-    const user = userStmt.get(req.user.id);
-    const trainerId = user?.trainer_id || null;
+    let trainerId = null;
+    if (target !== 'admin') {
+        const userStmt = db.prepare('SELECT trainer_id FROM users WHERE id = ?');
+        const user = userStmt.get(req.user.id);
+        trainerId = user?.trainer_id || null;
+    }
 
     const stmt = db.prepare('INSERT INTO support_tickets (user_id, trainer_id, message, sender_id) VALUES (?, ?, ?, ?)');
     const info = stmt.run(req.user.id, trainerId, message, req.user.id);

@@ -47,7 +47,7 @@ const SupportTab = () => {
 
     const chatMessages: ChatMessage[] = tickets.map(t => {
         let sender: "me" | "coach" | "admin" = "me";
-        if (t.sender_id !== user?.id) {
+        if (Number(t.sender_id) !== Number(user?.id)) {
             sender = t.trainer_id ? "coach" : "admin";
         }
         return {
@@ -205,10 +205,14 @@ const SupportTab = () => {
                             .filter(m => {
                                 // Filter messages based on active recipient channel
                                 const originalTicket = tickets.find(t => String(t.id) === m.id);
+                                const t_trainerId = originalTicket?.trainer_id;
+                                
                                 if (recipient === "admin") {
-                                    return m.sender === "admin" || (m.sender === "me" && (!originalTicket?.trainer_id || originalTicket?.trainer_id === 0));
+                                    // Admin channel: no trainer_id
+                                    return m.sender === "admin" || (m.sender === "me" && (!t_trainerId || t_trainerId === 0));
                                 } else {
-                                    return m.sender === "coach" || (m.sender === "me" && originalTicket?.trainer_id && originalTicket?.trainer_id !== 0);
+                                    // Coach channel: has trainer_id
+                                    return m.sender === "coach" || (m.sender === "me" && t_trainerId && t_trainerId !== 0);
                                 }
                             })
                             .map(msg => (
