@@ -1,6 +1,7 @@
 import { OnboardingData } from "@/types/onboarding";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Props {
   data: OnboardingData;
@@ -29,16 +30,18 @@ const selectOptions = (
 );
 
 export function StepLifestyle({ data, onChange }: Props) {
+  const { t } = useLanguage();
+
   return (
-    <div className="space-y-7">
+    <div className="space-y-10">
       {/* Training Frequency */}
-      <div className="space-y-3">
-        <Label>Training Frequency</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('trainingFrequency', 'onboarding')}</Label>
         {selectOptions(
           [
-            { id: "1-2 days", label: "1-2 Days / Week" },
-            { id: "3-4 days", label: "3-4 Days / Week" },
-            { id: "5-6 days", label: "5-6 Days / Week" },
+            { id: "1-2 days", label: t('freq12', 'onboarding') },
+            { id: "3-4 days", label: t('freq34', 'onboarding') },
+            { id: "5-6 days", label: t('freq56', 'onboarding') },
           ],
           data.trainingFrequency,
           (id) => onChange({ trainingFrequency: id })
@@ -46,14 +49,14 @@ export function StepLifestyle({ data, onChange }: Props) {
       </div>
 
       {/* Training Duration */}
-      <div className="space-y-3">
-        <Label>Preferred Workout Duration</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('preferredDuration', 'onboarding')}</Label>
         {selectOptions(
           [
-            { id: "under-30", label: "Under 30 mins" },
-            { id: "30-45", label: "30-45 mins" },
-            { id: "45-60", label: "45-60 mins" },
-            { id: "over-60", label: "60+ mins" },
+            { id: "under-30", label: t('under30', 'onboarding') },
+            { id: "30-45", label: t('30-45', 'onboarding') },
+            { id: "45-60", label: t('45-60', 'onboarding') },
+            { id: "over-60", label: t('over60', 'onboarding') },
           ],
           data.trainingDuration,
           (id) => onChange({ trainingDuration: id })
@@ -61,10 +64,10 @@ export function StepLifestyle({ data, onChange }: Props) {
       </div>
 
       {/* Discipline slider */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className="flex justify-between">
-          <Label>Discipline Level</Label>
-          <span className="text-sm text-primary font-medium">{data.disciplineLevel}/10</span>
+          <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('disciplineLevel', 'onboarding')}</Label>
+          <span className="text-sm text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-full">{data.disciplineLevel}/10</span>
         </div>
         <Slider
           value={[data.disciplineLevel]}
@@ -75,10 +78,10 @@ export function StepLifestyle({ data, onChange }: Props) {
       </div>
 
       {/* Motivation slider */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className="flex justify-between">
-          <Label>Motivation Level</Label>
-          <span className="text-sm text-primary font-medium">{data.motivationLevel}/10</span>
+          <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('motivationLevel', 'onboarding')}</Label>
+          <span className="text-sm text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-full">{data.motivationLevel}/10</span>
         </div>
         <Slider
           value={[data.motivationLevel]}
@@ -88,24 +91,24 @@ export function StepLifestyle({ data, onChange }: Props) {
       </div>
 
       {/* Sleep */}
-      <div className="space-y-3">
-        <Label>Sleep Quality</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('sleepQuality', 'onboarding')}</Label>
         {selectOptions(
-          [{ id: "poor", label: "Poor" }, { id: "average", label: "Average" }, { id: "good", label: "Good" }],
+          [{ id: "poor", label: t('poor', 'onboarding') }, { id: "average", label: t('average', 'onboarding') }, { id: "good", label: t('good', 'onboarding') }],
           data.sleepQuality,
           (id) => onChange({ sleepQuality: id })
         )}
       </div>
 
       {/* Activity */}
-      <div className="space-y-3">
-        <Label>Daily Activity Level</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('activityLevel', 'onboarding')}</Label>
         {selectOptions(
           [
-            { id: "sedentary", label: "Sedentary" },
-            { id: "lightly-active", label: "Lightly Active" },
-            { id: "moderately-active", label: "Moderately Active" },
-            { id: "very-active", label: "Very Active" },
+            { id: "sedentary", label: t('sedentary', 'onboarding') },
+            { id: "lightly-active", label: t('lightActive', 'onboarding') },
+            { id: "moderately-active", label: t('modActive', 'onboarding') },
+            { id: "very-active", label: t('veryActive', 'onboarding') },
           ],
           data.activityLevel,
           (id) => onChange({ activityLevel: id })
@@ -113,40 +116,40 @@ export function StepLifestyle({ data, onChange }: Props) {
       </div>
 
       {/* Stress */}
-      <div className="space-y-3">
-        <Label>Stress Level</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('stressLevel', 'onboarding')}</Label>
         {selectOptions(
-          [{ id: "low", label: "Low" }, { id: "moderate", label: "Moderate" }, { id: "high", label: "High" }],
+          [{ id: "low", label: t('low', 'onboarding') }, { id: "moderate", label: t('moderate', 'onboarding') }, { id: "high", label: t('high', 'onboarding') }],
           data.stressLevel,
           (id) => onChange({ stressLevel: id })
         )}
       </div>
 
       {/* Proactivity */}
-      <div className="space-y-3">
-        <Label>Proactivity Level</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('proactivityLevel', 'onboarding')}</Label>
         {selectOptions(
-          [{ id: "low", label: "Low" }, { id: "moderate", label: "Moderate" }, { id: "high", label: "High" }],
+          [{ id: "low", label: t('low', 'onboarding') }, { id: "moderate", label: t('moderate', 'onboarding') }, { id: "high", label: t('high', 'onboarding') }],
           data.proactivity,
           (id) => onChange({ proactivity: id })
         )}
       </div>
 
       {/* Self-development */}
-      <div className="space-y-3">
-        <Label>Interest in Self-Development</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('selfDevelopment', 'onboarding')}</Label>
         {selectOptions(
-          [{ id: "low", label: "Low" }, { id: "moderate", label: "Moderate" }, { id: "high", label: "High" }],
+          [{ id: "low", label: t('low', 'onboarding') }, { id: "moderate", label: t('moderate', 'onboarding') }, { id: "high", label: t('high', 'onboarding') }],
           data.selfDevelopment,
           (id) => onChange({ selfDevelopment: id })
         )}
       </div>
 
       {/* Perfectionism */}
-      <div className="space-y-3">
-        <Label>Perfectionism Tendency</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('perfectionismLevel', 'onboarding')}</Label>
         {selectOptions(
-          [{ id: "low", label: "Low" }, { id: "moderate", label: "Moderate" }, { id: "high", label: "High" }],
+          [{ id: "low", label: t('low', 'onboarding') }, { id: "moderate", label: t('moderate', 'onboarding') }, { id: "high", label: t('high', 'onboarding') }],
           data.perfectionism,
           (id) => onChange({ perfectionism: id })
         )}

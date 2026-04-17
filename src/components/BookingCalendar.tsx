@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, isSameMonth, isSameDay, addDays, parseISO, isAfter, startOfToday } from "date-fns";
+import { cs, enUS } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Clock, Check } from "lucide-react";
 import { Button } from "./ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { getApiUrl } from "@/lib/utils";
 
@@ -13,6 +15,8 @@ interface Booking {
 
 export function BookingCalendar({ trainerId }: { trainerId: number }) {
     const { token, user } = useAuth();
+    const { language, t } = useLanguage();
+    const locale = language === 'cs' ? cs : enUS;
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [busySlots, setBusySlots] = useState<Booking[]>([]);
@@ -37,8 +41,8 @@ export function BookingCalendar({ trainerId }: { trainerId: number }) {
     const renderHeader = () => {
         return (
             <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-display font-bold">
-                    {format(currentMonth, "MMMM yyyy")}
+                <h2 className="text-xl font-display font-bold capitalize">
+                    {format(currentMonth, "MMMM yyyy", { locale })}
                 </h2>
                 <div className="flex gap-2">
                     <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
@@ -54,11 +58,10 @@ export function BookingCalendar({ trainerId }: { trainerId: number }) {
 
     const renderDays = () => {
         const days = [];
-        const dateNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
         for (let i = 0; i < 7; i++) {
             days.push(
                 <div key={i} className="text-center text-xs font-semibold text-muted-foreground uppercase py-2">
-                    {dateNames[i]}
+                    {format(addDays(startOfWeek(currentMonth), i), "E", { locale })}
                 </div>
             );
         }
@@ -127,7 +130,7 @@ export function BookingCalendar({ trainerId }: { trainerId: number }) {
 
     const handleBook = async (time: string) => {
         if (user?.role === 'trainer' && !selectedClientId) {
-            toast.error("Please select a client first");
+            toast.error(t('selectClientFirst', 'tabs') || "Please select a client first");
             return;
         }
 
@@ -150,10 +153,10 @@ export function BookingCalendar({ trainerId }: { trainerId: number }) {
 
             const data = await res.json();
             if (data.success) {
-                toast.success("Session booked successfully!");
+                toast.success(t('sessionBooked', 'tabs') || "Session booked successfully!");
                 fetchBusySlots();
             } else {
-                toast.error(data.error || "Failed to book");
+                toast.error(data.error || t('failedToBook', 'tabs') || "Failed to book");
             }
         } catch (e) {
             toast.error("Network error");
@@ -173,21 +176,21 @@ export function BookingCalendar({ trainerId }: { trainerId: number }) {
             <div className="glass-card rounded-2xl p-6">
                 <h3 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
                     <Clock className="h-5 w-5 text-primary" />
-                    Available Slots
+                    {t('availableSlots', 'tabs')}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                    For {format(selectedDate, "MMMM do, yyyy")}
+                <p className="text-sm text-muted-foreground mb-4 capitalize">
+                    {format(selectedDate, "MMMM do, yyyy", { locale })}
                 </p>
 
                 {user?.role === 'trainer' && (
                     <div className="mb-4 space-y-2">
-                        <label className="text-xs font-semibold text-muted-foreground uppercase">Select Client</label>
+                        <label className="text-xs font-semibold text-muted-foreground uppercase">{t('selectClient', 'tabs')}</label>
                         <select
                             className="w-full bg-secondary/50 border border-border/50 rounded-lg p-2 text-sm outline-none focus:ring-1 focus:ring-primary"
                             value={selectedClientId || ""}
                             onChange={(e) => setSelectedClientId(Number(e.target.value))}
                         >
-                            <option value="">Choose a client...</option>
+                            <option value="">{t('chooseClient', 'tabs')}</option>
                             {clients.map(c => (
                                 <option key={c.id} value={c.id}>{c.username}</option>
                             ))}
@@ -210,7 +213,7 @@ export function BookingCalendar({ trainerId }: { trainerId: number }) {
                                 onClick={() => handleBook(time)}
                             >
                                 {time}
-                                {isBusy && <span className="ml-2 text-[10px] uppercase font-bold text-destructive">Busy</span>}
+                                {isBusy && <span className="ml-2 text-[10px] uppercase font-bold text-destructive">{t('busy', 'tabs')}</span>}
                             </Button>
                         );
                     })}

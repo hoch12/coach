@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
     Users, Calendar, MessageCircle, LogOut, ArrowLeft,
-    ChevronRight, User, CheckCircle2, Clock, Dumbbell
+    ChevronRight, User, CheckCircle2, Clock, Dumbbell, Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -34,13 +35,16 @@ interface Ticket {
     id: number;
     username: string;
     message: string;
-    reply: string | null;
     status: string;
     created_at: string;
+    trainer_id: number | null;
+    user_id: number;
+    sender_id: number;
 }
 
 export default function TrainerDashboard() {
     const { user, token, logout, updateUser } = useAuth();
+    const { language, setLanguage, t } = useLanguage();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("clients");
     const [clients, setClients] = useState<Client[]>([]);
@@ -55,6 +59,30 @@ export default function TrainerDashboard() {
     const [isDetailsLoading, setIsDetailsLoading] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [passwordForm, setPasswordForm] = useState({ old: "", new: "", confirm: "" });
+    const [isInitiating, setIsInitiating] = useState(false);
+    const [messagingClient, setMessagingClient] = useState<Client | null>(null);
+    const [initiateMessageText, setInitiateMessageText] = useState("");
+    
+    // Progress Tracking State
+    const [clientWorkoutLogs, setClientWorkoutLogs] = useState<any[]>([]);
+    const [clientNutritionLogs, setClientNutritionLogs] = useState<any[]>([]);
+    const [clientDailyLogs, setClientDailyLogs] = useState<any[]>([]);
+    const [isProgressLoading, setIsProgressLoading] = useState(false);
+    
+    // Chat state
+    const [selectedChatUser, setSelectedChatUser] = useState<any>(null); // Can be Client | 'admin'
+    const [isSendingChat, setIsSendingChat] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [tickets, selectedChatUser]);
 
     useEffect(() => {
         fetchData();
@@ -98,15 +126,116 @@ export default function TrainerDashboard() {
                 body: JSON.stringify({ reply: replyText })
             });
             if (res.ok) {
-                toast.success("Reply sent");
+                toast.success(t('replySent', 'trainer'));
                 setReplyText("");
                 setReplyingTo(null);
                 fetchData();
             }
         } catch (e) {
-            toast.error("Error sending reply");
+            toast.error(t('errorSendingReply', 'trainer'));
         }
     };
+
+    const handleInitiateMessage = async () => {
+        if (!initiateMessageText.trim() || !messagingClient) return;
+        setIsInitiating(true);
+        try {
+            const res = await fetch(getApiUrl("/api/support/trainer-initiate"), {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ clientId: messagingClient.id, message: initiateMessageText })
+            });
+            if (res.ok) {
+                toast.success(t('msgSentCoach', 'tabs') || "Message sent!");
+                setInitiateMessageText("");
+                setMessagingClient(null);
+                fetchData();
+                setActiveTab("chat");
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                toast.error(`${t('sendError', 'tabs')} ${errData.error || res.statusText}`);
+            }
+        } catch (e) {
+            toast.error("Network error");
+        } finally {
+            setIsInitiating(false);
+        }
+    };
+
+    const handleChatSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!replyText.trim() || !selectedChatUser) return;
+
+        setIsSendingChat(true);
+        try {
+            const isAdminChat = selectedChatUser.id === 'admin';
+            
+            // Unify logic: both Admin and Client chats now look for an 'open' thread to reply to
+            const relevantTickets = tickets.filter(t => {
+                const t_userId = Number(t.user_id);
+                const t_trainerId = t.trainer_id ? Number(t.trainer_id) : null;
+                const currentUserId = Number(user?.id);
+
+                if (isAdminChat) {
+                    return t_userId === currentUserId && (t_trainerId === null || t_trainerId === 0);
+                } else {
+                    return t_userId === Number(selectedChatUser.id);
+                }
+            });
+
+            const openTicket = relevantTickets.find(t => t.status === "open");
+
+            if (openTicket) {
+                // Reply to the open ticket (Universal for both Admin and Client)
+                const res = await fetch(getApiUrl(`/api/support/${openTicket.id}/reply`), {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ reply: replyText })
+                });
+                if (res.ok) {
+                    toast.success(isAdminChat ? (t('msgSentAdmin', 'trainer') || "Message sent to Admin!") : t('replySent', 'trainer'));
+                    setReplyText("");
+                    fetchData();
+                } else {
+                    toast.error(t('errorSendingReply', 'trainer'));
+                }
+            } else {
+                // Initiate a new message
+                let res;
+                if (isAdminChat) {
+                    // Trainer to Admin
+                    res = await fetch(getApiUrl("/api/support"), {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ message: replyText })
+                    });
+                } else {
+                    // Trainer to Client
+                    res = await fetch(getApiUrl("/api/support/trainer-initiate"), {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                        body: JSON.stringify({ clientId: selectedChatUser.id, message: replyText })
+                    });
+                }
+
+                if (res?.ok) {
+                    toast.success(isAdminChat ? (t('msgSentAdmin', 'trainer') || "Message sent to Admin!") : t('replySent', 'trainer'));
+                    setReplyText("");
+                    fetchData();
+                } else {
+                    toast.error("Failed to send message");
+                }
+            }
+        } catch (e) {
+            toast.error("Network error");
+        } finally {
+            setIsSendingChat(false);
+        }
+    };
+
     const handleBookingStatus = async (bookingId: number, action: 'accept' | 'decline') => {
         try {
             const res = await fetch(getApiUrl(`/api/bookings/${bookingId}/${action}`), {
@@ -125,13 +254,20 @@ export default function TrainerDashboard() {
     const viewUserDetails = async (u: Client) => {
         setSelectedUser(u);
         setIsDetailsLoading(true);
+        setIsProgressLoading(true);
         setSelectedProfile(null);
         setSelectedPlan(null);
+        setClientWorkoutLogs([]);
+        setClientNutritionLogs([]);
+        setClientDailyLogs([]);
 
         try {
-            const [profileRes, planRes] = await Promise.all([
+            const [profileRes, planRes, workoutRes, nutritionRes, dailyRes] = await Promise.all([
                 fetch(getApiUrl(`/api/admin/users/${u.id}/profile`), { headers: { "Authorization": `Bearer ${token}` } }),
-                fetch(getApiUrl(`/api/admin/users/${u.id}/plan`), { headers: { "Authorization": `Bearer ${token}` } })
+                fetch(getApiUrl(`/api/admin/users/${u.id}/plan`), { headers: { "Authorization": `Bearer ${token}` } }),
+                fetch(getApiUrl(`/api/trainer/client/${u.id}/logs/workout`), { headers: { "Authorization": `Bearer ${token}` } }),
+                fetch(getApiUrl(`/api/trainer/client/${u.id}/logs/nutrition`), { headers: { "Authorization": `Bearer ${token}` } }),
+                fetch(getApiUrl(`/api/trainer/client/${u.id}/logs/daily`), { headers: { "Authorization": `Bearer ${token}` } })
             ]);
 
             if (profileRes.ok) {
@@ -144,10 +280,23 @@ export default function TrainerDashboard() {
                     setSelectedPlan(JSON.parse(planData.plan_data));
                 }
             }
+            if (workoutRes.ok) {
+                const logs = await workoutRes.json();
+                setClientWorkoutLogs(logs.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+            }
+            if (nutritionRes.ok) {
+                const logs = await nutritionRes.json();
+                setClientNutritionLogs(logs.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+            }
+            if (dailyRes.ok) {
+                const logs = await dailyRes.json();
+                setClientDailyLogs(logs.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+            }
         } catch (e) {
             toast.error("Failed to load user details");
         } finally {
             setIsDetailsLoading(false);
+            setIsProgressLoading(false);
         }
     };
 
@@ -180,9 +329,9 @@ export default function TrainerDashboard() {
     };
 
     const navItems = [
-        { id: "clients", label: "My Clients", icon: Users },
-        { id: "schedule", label: "Schedule", icon: Calendar },
-        { id: "chat", label: "Messages", icon: MessageCircle },
+        { id: "clients", label: t('myClients', 'trainer'), icon: Users },
+        { id: "schedule", label: t('schedule', 'trainer'), icon: Calendar },
+        { id: "chat", label: t('messages', 'trainer'), icon: MessageCircle },
     ];
 
     return (
@@ -225,7 +374,7 @@ export default function TrainerDashboard() {
             <main className="flex-1 flex flex-col overflow-hidden">
                 <header className="px-4 md:px-8 py-4 md:py-6 border-b border-border/50 flex flex-col md:flex-row gap-4 justify-between items-center bg-card/30 backdrop-blur-md sticky top-0 z-10">
                     <div className="flex w-full md:w-auto items-center justify-between">
-                        <h1 className="text-xl md:text-2xl font-display font-bold">Trainer Dashboard</h1>
+                        <h1 className="text-xl md:text-2xl font-display font-bold">{t('trainerDashboard', 'trainer')}</h1>
                         <div className="flex md:hidden gap-1 items-center border-l border-border/50 pl-2 ml-1">
                             {navItems.map(item => (
                                 <button
@@ -254,6 +403,20 @@ export default function TrainerDashboard() {
                         </div>
                     </div>
                     <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                        <div className="flex items-center bg-secondary/50 rounded-lg p-1 mr-2">
+                            <button 
+                                onClick={() => setLanguage('en')} 
+                                className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                                EN
+                            </button>
+                            <button 
+                                onClick={() => setLanguage('cs')} 
+                                className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'cs' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                                CS
+                            </button>
+                        </div>
                         <div className="text-right">
                             <p className="text-sm font-medium">{user?.username}</p>
                             <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
@@ -288,12 +451,12 @@ export default function TrainerDashboard() {
                                                 </Button>
                                             </div>
                                             <CardTitle className="mt-4">{client.username}</CardTitle>
-                                            <CardDescription>Active Client</CardDescription>
+                                            <CardDescription>{t('activeClient', 'trainer')}</CardDescription>
                                         </CardHeader>
                                         <CardContent>
                                             <div className="flex gap-2 mt-2">
-                                                <Button variant="outline" size="sm" className="flex-1 font-medium" onClick={() => setActiveTab("chat")}>
-                                                    <MessageCircle className="h-4 w-4 mr-2" /> Chat
+                                                <Button variant="outline" size="sm" className="flex-1 font-medium" onClick={() => setMessagingClient(client)}>
+                                                    <MessageCircle className="h-4 w-4 mr-2" /> {t('messageClient', 'trainer')}
                                                 </Button>
                                             </div>
                                         </CardContent>
@@ -301,7 +464,7 @@ export default function TrainerDashboard() {
                                 ))}
                                 {clients.length === 0 && !isLoading && (
                                     <p className="col-span-full text-center py-12 text-muted-foreground bg-secondary/20 rounded-2xl border-2 border-dashed border-border">
-                                        No clients assigned to you yet.
+                                        {t('noClientsAssigned', 'trainer')}
                                     </p>
                                 )}
                             </div>
@@ -331,7 +494,7 @@ export default function TrainerDashboard() {
                                         ))}
 
                                         <h3 className="text-lg font-bold flex items-center gap-2 mt-6">
-                                            <CheckCircle2 className="h-5 w-5 text-green-500" /> Confirmed Sessions
+                                            <CheckCircle2 className="h-5 w-5 text-green-500" /> {t('confirmedSessions', 'trainer')}
                                         </h3>
                                         {bookings.filter(b => b.status === 'scheduled').map(booking => (
                                             <div key={booking.id} className="p-4 rounded-xl bg-card border border-border/50 flex justify-between items-center">
@@ -342,50 +505,138 @@ export default function TrainerDashboard() {
                                                 <CheckCircle2 className="h-5 w-5 text-green-500" />
                                             </div>
                                         ))}
-                                        {bookings.length === 0 && <p className="text-sm text-muted-foreground">No upcoming sessions.</p>}
+                                        {bookings.length === 0 && <p className="text-sm text-muted-foreground">{t('noUpcomingSessions', 'trainer')}</p>}
                                     </div>
                                 </div>
                             </div>
                         )}
 
                         {activeTab === "chat" && (
-                            <div className="space-y-4">
-                                {tickets.map(ticket => (
-                                    <div key={ticket.id} className={`p-4 rounded-2xl border ${ticket.status === 'open' ? 'bg-primary/5 border-primary/20' : 'bg-card border-border/50'}`}>
-                                        <div className="flex justify-between items-start mb-2">
+                            <div className="flex bg-card/50 border border-border/50 rounded-2xl overflow-hidden h-[600px] mt-4">
+                                {/* Clients Sidebar */}
+                                <div className="w-1/3 border-r border-border/50 flex flex-col bg-card/30">
+                                    <div className="p-4 border-b border-border/50 font-bold bg-secondary/10 flex items-center gap-2">
+                                        <MessageCircle className="h-4 w-4" />
+                                        {t('chats', 'trainer') || "Conversations"}
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto w-full p-2 space-y-1">
+                                        <div 
+                                            onClick={() => setSelectedChatUser({ id: 'admin', username: t('systemAdmin', 'trainer') || 'System Admin' })}
+                                            className={`p-3 rounded-xl cursor-pointer hover:bg-accent/10 transition-colors flex justify-between items-center border border-dashed ${selectedChatUser?.id === 'admin' ? 'bg-accent/10 border-accent/40' : 'border-border/30'}`}
+                                        >
                                             <div className="flex items-center gap-2">
-                                                <span className="font-bold">{ticket.username}</span>
-                                                <span className="text-[10px] text-muted-foreground uppercase">{new Date(ticket.created_at).toLocaleDateString()}</span>
+                                                <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                                                <span className="font-bold text-sm text-accent">{t('administrator', 'trainer') || "Administrator"}</span>
                                             </div>
-                                            {ticket.status === 'open' && <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-bold">NEW</span>}
                                         </div>
-                                        <p className="text-sm mb-4">{ticket.message}</p>
 
-                                        {ticket.reply ? (
-                                            <div className="pl-4 border-l-2 border-primary/30 mt-2">
-                                                <p className="text-xs font-bold text-primary mb-1">Your response:</p>
-                                                <p className="text-sm italic text-muted-foreground">{ticket.reply}</p>
-                                            </div>
-                                        ) : (
-                                            replyingTo === ticket.id ? (
-                                                <div className="mt-2 space-y-2">
-                                                    <textarea
-                                                        className="w-full bg-background border border-border/50 rounded-xl p-3 text-sm focus:ring-1 focus:ring-primary outline-none"
-                                                        placeholder="Type your reply..."
-                                                        value={replyText}
-                                                        onChange={(e) => setReplyText(e.target.value)}
-                                                    />
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button variant="ghost" size="sm" onClick={() => setReplyingTo(null)}>Cancel</Button>
-                                                        <Button size="sm" onClick={() => handleReply(ticket.id)}>Send Reply</Button>
+                                        <div className="h-px bg-border/30 my-2" />
+
+                                        {clients.map(client => {
+                                            const clientTickets = tickets.filter(t => Number((t as any).user_id) === Number(client.id));
+                                            const hasUnread = clientTickets.some(t => t.status === 'open');
+                                            return (
+                                                <div 
+                                                    key={client.id}
+                                                    onClick={() => setSelectedChatUser(client)}
+                                                    className={`p-3 rounded-xl cursor-pointer hover:bg-accent/10 transition-colors flex justify-between items-center ${selectedChatUser?.id === client.id ? 'bg-primary/10 border border-primary/20' : ''}`}
+                                                >
+                                                    <span className="font-semibold text-sm">{client.username}</span>
+                                                    {hasUnread && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                                </div>
+                                            );
+                                        })}
+                                        {clients.length === 0 && <p className="text-xs text-muted-foreground p-2 text-center opacity-50">No clients assigned.</p>}
+                                    </div>
+                                </div>
+                                
+                                {/* Chat Area */}
+                                <div className="flex-1 flex flex-col h-full bg-background/50 relative">
+                                    {selectedChatUser ? (() => {
+                                        const isAdminChat = selectedChatUser.id === 'admin';
+                                        const clientTickets = tickets.filter(t => {
+                                            const t_userId = Number(t.user_id);
+                                            const t_trainerId = t.trainer_id ? Number(t.trainer_id) : null;
+                                            const currentUserId = Number(user?.id);
+
+                                            if (isAdminChat) {
+                                                // Trainer messaging Admin: user_id is the Trainer (me), trainer_id is null
+                                                return t_userId === currentUserId && (t_trainerId === null || t_trainerId === 0);
+                                            } else {
+                                                // Trainer messaging Client: user_id is the Client, trainer_id is the Trainer (me)
+                                                // OR viewing client messages: user_id is the Client
+                                                return t_userId === Number(selectedChatUser.id);
+                                            }
+                                        });
+                                        
+                                        interface ChatMessage {
+                                            id: string;
+                                            text: string;
+                                            sender: "other" | "me";
+                                            timestamp: string;
+                                            isOpen?: boolean;
+                                        }
+ 
+                                        const chatMessages: ChatMessage[] = clientTickets.map(t => ({
+                                            id: String(t.id),
+                                            text: t.message,
+                                            sender: t.sender_id === Number(user?.id) ? "me" : "other",
+                                            timestamp: t.created_at,
+                                            isOpen: t.status === "open"
+                                        }));
+                                        chatMessages.sort((a,b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+                                        return (
+                                            <>
+                                                <div className="p-4 border-b border-border/50 bg-secondary/10 font-bold flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex justify-center items-center font-bold text-sm">
+                                                            {selectedChatUser.username.slice(0, 2).toUpperCase()}
+                                                        </div>
+                                                        <span>{selectedChatUser.username}</span>
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <Button size="sm" onClick={() => setReplyingTo(ticket.id)}>Reply</Button>
-                                            )
-                                        )}
-                                    </div>
-                                ))}
+                                                <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
+                                                    {chatMessages.length === 0 ? (
+                                                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50 flex-col gap-2">
+                                                            <MessageCircle className="h-10 w-10 mb-3" />
+                                                            <p>No messages yet.</p>
+                                                        </div>
+                                                    ) : chatMessages.map(msg => (
+                                                        <div key={msg.id} className={`flex ${msg.sender === 'other' ? 'justify-start' : 'justify-end'}`}>
+                                                            <div className={`max-w-[75%] p-3 rounded-2xl ${msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-secondary text-secondary-foreground border border-border/50 rounded-tl-sm'}`}>
+                                                                <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                                                                <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${msg.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                                                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    {msg.isOpen && <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/20">NEW</span>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <div className="p-4 border-t border-border/50 bg-card/50">
+                                                    <form onSubmit={handleChatSubmit} className="flex gap-2">
+                                                        <Input
+                                                            placeholder={t('typeYourReply', 'trainer') || "Write a message..."}
+                                                            value={replyText}
+                                                            onChange={(e) => setReplyText(e.target.value)}
+                                                            className="flex-1 bg-background"
+                                                            disabled={isSendingChat}
+                                                        />
+                                                        <Button type="submit" variant="hero" disabled={isSendingChat || !replyText.trim()}>
+                                                            {isSendingChat ? (t('sending', 'tabs') || "Sending...") : (t('send', 'tabs') || "Send")}
+                                                        </Button>
+                                                    </form>
+                                                </div>
+                                            </>
+                                        );
+                                    })() : (
+                                        <div className="flex-1 flex items-center justify-center text-muted-foreground opacity-50 flex-col gap-2">
+                                            <MessageCircle className="h-10 w-10" />
+                                            <p>{t('selectAClient', 'trainer') || "Select a client to start chatting"}</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -393,8 +644,8 @@ export default function TrainerDashboard() {
                 <Dialog open={!!selectedUser} onOpenChange={(open: boolean) => !open && setSelectedUser(null)}>
                     <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
                         <DialogHeader className="p-6 pb-2">
-                            <DialogTitle>Client Details: {selectedUser?.username}</DialogTitle>
-                            <DialogDescription>Personalized fitness data and program</DialogDescription>
+                            <DialogTitle>{t('clientDetails', 'trainer') || "Client Details"}: {selectedUser?.username}</DialogTitle>
+                            <DialogDescription>{t('clientDetailsDesc', 'trainer') || "Personalized fitness data and program"}</DialogDescription>
                         </DialogHeader>
 
                         <div className="flex-1 overflow-y-auto px-6 pb-6 mt-2">
@@ -402,41 +653,95 @@ export default function TrainerDashboard() {
                                 <p className="text-center py-8 text-muted-foreground">Loading client data...</p>
                             ) : (
                                 <div className="space-y-6 pb-6 mt-4">
-                                    {selectedProfile && selectedProfile.age ? (
+                                     {selectedProfile && selectedProfile.age ? (
                                         <div className="space-y-4">
-                                            <h3 className="font-semibold text-lg border-b pb-2">Profile Information</h3>
+                                            <h3 className="font-semibold text-lg border-b pb-2">{t('profileInfo', 'profile') || "Profile Information"}</h3>
                                             <div className="grid grid-cols-2 gap-4 text-sm">
-                                                <div><span className="text-muted-foreground font-medium">Age:</span> {selectedProfile.age}</div>
-                                                <div><span className="text-muted-foreground font-medium">Gender:</span> {selectedProfile.gender}</div>
-                                                <div><span className="text-muted-foreground font-medium">Weight:</span> {selectedProfile.weight} kg</div>
-                                                <div><span className="text-muted-foreground font-medium">Height:</span> {selectedProfile.height} cm</div>
-                                                <div><span className="text-muted-foreground font-medium">Level:</span> {selectedProfile.fitnessLevel}</div>
-                                                <div><span className="text-muted-foreground font-medium">Diet:</span> {selectedProfile.dietaryPreference}</div>
+                                                <div><span className="text-muted-foreground font-medium">{t('age', 'onboarding')}:</span> {selectedProfile.age}</div>
+                                                <div><span className="text-muted-foreground font-medium">{t('gender', 'onboarding')}:</span> {t(selectedProfile.gender as any, 'onboarding')}</div>
+                                                <div><span className="text-muted-foreground font-medium">{t('weight', 'onboarding')}:</span> {selectedProfile.weight} kg</div>
+                                                <div><span className="text-muted-foreground font-medium">{t('height', 'onboarding')}:</span> {selectedProfile.height} cm</div>
+                                                <div><span className="text-muted-foreground font-medium">{t('level', 'onboarding')}:</span> {t(selectedProfile.fitnessLevel as any, 'onboarding')}</div>
+                                                <div><span className="text-muted-foreground font-medium">{t('diet', 'onboarding')}:</span> {t(selectedProfile.dietaryPreference as any, 'onboarding')}</div>
                                             </div>
                                             <div className="space-y-2 text-sm">
-                                                <p><span className="text-muted-foreground font-medium">Goals:</span> {selectedProfile.fitnessGoals?.join(', ')}</p>
-                                                <p><span className="text-muted-foreground font-medium">Limitations:</span> {selectedProfile.healthLimitations || 'None'}</p>
-                                                <p><span className="text-muted-foreground font-medium">Allergies:</span> {selectedProfile.allergies || 'None'}</p>
+                                                <p><span className="text-muted-foreground font-medium">{t('fitnessGoals', 'onboarding')}:</span> {selectedProfile.fitnessGoals?.map((g: string) => t(g.toLowerCase().replace(/ /g, '-'), 'onboarding')).join(', ')}</p>
+                                                <p><span className="text-muted-foreground font-medium">{t('healthLimitations', 'onboarding')}:</span> {selectedProfile.healthLimitations || t('none', 'common')}</p>
+                                                <p><span className="text-muted-foreground font-medium">{t('allergies', 'onboarding')}:</span> {selectedProfile.allergies || t('none', 'common')}</p>
                                             </div>
                                         </div>
                                     ) : (
-                                        <p className="text-muted-foreground italic">Client hasn't completed onboarding yet.</p>
+                                        <p className="text-muted-foreground italic">{t('notCompleted', 'profile')}</p>
                                     )}
 
                                     {selectedPlan && (
                                         <div className="space-y-4 pt-4 border-t border-border/50">
-                                            <h3 className="font-semibold text-lg border-b pb-2">Training Plan</h3>
-                                            <p className="text-sm"><span className="text-muted-foreground font-medium">Weekly Training Days:</span> {selectedPlan.trainingSplit.length}</p>
+                                            <h3 className="font-semibold text-lg border-b pb-2">{t('training', 'sidebar')}</h3>
+                                            <p className="text-sm"><span className="text-muted-foreground">{t('trainingDays', 'dashboard')}:</span> {selectedPlan?.trainingSplit?.length || 0}</p>
 
-                                            <h3 className="font-semibold text-lg border-b pb-2 mt-4">Nutrition Plan</h3>
+                                            <h3 className="font-semibold text-lg border-b pb-2 mt-4">{t('nutrition', 'sidebar')}</h3>
                                             <div className="grid grid-cols-2 gap-4 text-sm">
-                                                <div><span className="text-muted-foreground font-medium">Daily Calories:</span> {selectedPlan.nutrition.calories} kcal</div>
-                                                <div><span className="text-muted-foreground font-medium">Protein:</span> {selectedPlan.nutrition.protein}g</div>
-                                                <div><span className="text-muted-foreground font-medium">Carbohydrates:</span> {selectedPlan.nutrition.carbs}g</div>
-                                                <div><span className="text-muted-foreground font-medium">Fats:</span> {selectedPlan.nutrition.fat}g</div>
+                                                <div><span className="text-muted-foreground">{t('calories', 'dashboard')}:</span> {selectedPlan?.nutrition?.calories || "-"} kcal</div>
+                                                <div><span className="text-muted-foreground">{t('protein', 'dashboard')}:</span> {selectedPlan?.nutrition?.protein || "-"}g</div>
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Client Progress Logs */}
+                                    <div className="space-y-4 pt-4 border-t border-border/50">
+                                        <h3 className="font-semibold text-lg border-b pb-2 flex justify-between items-center text-accent">
+                                            {t('clientTrackingHistory', 'trainer') || "Client Tracking History"}
+                                            <Activity className="h-4 w-4" />
+                                        </h3>
+                                        
+                                        <div className="space-y-4">
+                                            <div>
+                                                <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">{t('recentWorkouts', 'dashboard')}</h4>
+                                                <div className="space-y-2">
+                                                    {clientWorkoutLogs.slice(0, 5).map((log: any) => (
+                                                        <div key={log.id} className="text-xs p-2 bg-secondary/20 rounded-lg border border-border/10 flex justify-between items-center">
+                                                            <div>
+                                                                <span className="font-bold">{log.exercise}</span>
+                                                                <span className="ml-2 opacity-60">{log.sets}x{log.reps} @ {log.weight}kg</span>
+                                                            </div>
+                                                            <span className="text-[10px] font-mono opacity-40">{new Date(log.date).toLocaleDateString()}</span>
+                                                        </div>
+                                                    ))}
+                                                    {clientWorkoutLogs.length === 0 && <p className="text-[10px] italic opacity-40">{t('noRecentWorkouts', 'dashboard') || "No recent workouts recorded."}</p>}
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-2">{t('nutritionSummary', 'dashboard') || "Nutrition Summary"}</h4>
+                                                <div className="space-y-2">
+                                                    {clientNutritionLogs.slice(0, 3).map((log: any) => (
+                                                        <div key={log.id} className="text-xs p-2 bg-secondary/20 rounded-lg border border-border/10">
+                                                            <div className="flex justify-between mb-1">
+                                                                <span className="font-bold">{log.meal_name}</span>
+                                                                <span className="text-[10px] font-mono opacity-40">{new Date(log.date).toLocaleDateString()}</span>
+                                                            </div>
+                                                            <div className="flex gap-2 opacity-70 scale-90 origin-left">
+                                                                <span className="bg-primary/10 px-1.5 rounded">{log.calories} kcal</span>
+                                                                <span className="bg-primary/10 px-1.5 rounded">P: {log.protein}g</span>
+                                                                <span className="bg-primary/10 px-1.5 rounded">C: {log.carbs}g</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {clientNutritionLogs.length === 0 && <p className="text-[10px] italic opacity-40">{t('noNutritionLogs', 'dashboard') || "No nutrition logs recorded."}</p>}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-6 mt-4 border-t border-border/50">
+                                        <Button 
+                                            variant="hero" 
+                                            className="w-full"
+                                            onClick={() => navigate(`/onboarding?client_id=${selectedUser?.id}`)}
+                                        >
+                                            {selectedProfile ? t('editClientPlan', 'trainer') : t('createClientPlan', 'trainer')}
+                                        </Button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -446,8 +751,8 @@ export default function TrainerDashboard() {
                 <Dialog open={isProfileOpen} onOpenChange={setIsProfileOpen}>
                     <DialogContent className="max-w-md max-h-[85vh] flex flex-col p-0 overflow-hidden">
                         <DialogHeader className="p-6 pb-2">
-                            <DialogTitle>Můj profil: {user?.username}</DialogTitle>
-                            <DialogDescription>Aktualizujte informace o svém veřejném profilu.</DialogDescription>
+                            <DialogTitle>{t('myProfile', 'trainer')}: {user?.username}</DialogTitle>
+                            <DialogDescription>{t('updateProfileDesc', 'trainer')}</DialogDescription>
                         </DialogHeader>
 
                         <div className="flex-1 overflow-y-auto px-6 pb-6">
@@ -460,116 +765,63 @@ export default function TrainerDashboard() {
                                             <span className="text-3xl font-bold text-primary">{user?.username?.[0]?.toUpperCase()}</span>
                                         )}
                                     </div>
-                                    <div className="flex flex-col items-center gap-2">
-                                        <Input
-                                            type="file"
-                                            accept="image/*"
-                                            id="trainer-avatar-upload"
-                                            className="hidden"
-                                            onChange={async (e) => {
-                                                const file = e.target.files?.[0];
-                                                if (!file) return;
-                                                if (file.size > 10 * 1024 * 1024) {
-                                                    toast.error("Obrázek je příliš velký (max 10MB)");
-                                                    return;
-                                                }
-                                                const reader = new FileReader();
-                                                reader.onloadend = async () => {
-                                                    const base64 = reader.result as string;
-                                                    try {
-                                                        const res = await fetch(getApiUrl("/api/user/settings"), {
-                                                            method: "PUT",
-                                                            headers: {
-                                                                "Content-Type": "application/json",
-                                                                "Authorization": `Bearer ${token}`
-                                                            },
-                                                            body: JSON.stringify({ profile_image: base64 })
-                                                        });
-                                                        if (res.ok) {
-                                                            const data = await res.json();
-                                                            console.log("[Trainer] Avatar updated successfully:", data.user);
-                                                            updateUser(data.user);
-                                                            toast.success("Profilová fotka byla úspěšně změněna!");
-                                                        } else {
-                                                            const errData = await res.json().catch(() => ({}));
-                                                            console.error("[Trainer] Avatar update failed:", res.status, errData);
-                                                            toast.error(`Chyba při nahrávání: ${errData.error || res.statusText}`);
-                                                        }
-                                                    } catch (e) {
-                                                        toast.error("Chyba při nahrávání");
-                                                    }
-                                                };
-                                                reader.readAsDataURL(file);
-                                            }}
-                                        />
-                                        <Label htmlFor="trainer-avatar-upload" className="cursor-pointer">
-                                            <Button variant="outline" size="sm" asChild>
-                                                <span>Změnit fotku</span>
-                                            </Button>
-                                        </Label>
-                                    </div>
                                 </div>
 
                                 <div className="space-y-4">
                                     <div className="space-y-2">
-                                        <Label>Uživatelské jméno</Label>
-                                        <div className="flex gap-2">
-                                            <Input
-                                                id="trainer_username_edit_field"
-                                                defaultValue={user?.username}
-                                            />
-                                            <Button size="sm" onClick={async () => {
-                                                const val = (document.getElementById("trainer_username_edit_field") as HTMLInputElement).value;
-                                                if (!val || val === user?.username) return;
-                                                try {
-                                                    const res = await fetch(getApiUrl("/api/user/settings"), {
-                                                        method: "PUT",
-                                                        headers: {
-                                                            "Content-Type": "application/json",
-                                                            "Authorization": `Bearer ${token}`
-                                                        },
-                                                        body: JSON.stringify({ username: val })
-                                                    });
-                                                    if (res.ok) {
-                                                        const data = await res.json();
-                                                        console.log("[Trainer] Username updated successfully:", data.user);
-                                                        updateUser(data.user);
-                                                        toast.success("Uživatelské jméno bylo úspěšně změněno!");
-                                                    } else {
-                                                        const errData = await res.json().catch(() => ({}));
-                                                        console.error("[Trainer] Username update failed:", res.status, errData);
-                                                        toast.error(errData.error || "Chyba při změně jména");
-                                                    }
-                                                } catch (e) {
-                                                    toast.error("Chyba sítě");
-                                                }
-                                            }}>Uložit</Button>
+                                        <Label>{t('username', 'onboarding')}</Label>
+                                        <div className="p-2 border border-border/50 rounded-md bg-secondary/20 text-sm">
+                                            {user?.username}
                                         </div>
                                     </div>
 
                                     <div className="border-t border-border/50 pt-4">
-                                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">Změna hesla</h3>
+                                        <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-4">{t('changePassword', 'profile')}</h3>
                                         <form onSubmit={handleChangePassword} className="space-y-4">
                                             <div className="space-y-2">
-                                                <Label>Současné heslo</Label>
+                                                <Label>{t('currentPassword', 'profile')}</Label>
                                                 <Input type="password" value={passwordForm.old} onChange={e => setPasswordForm({ ...passwordForm, old: e.target.value })} required />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label>Nové heslo</Label>
+                                                <Label>{t('newPassword', 'profile')}</Label>
                                                 <Input type="password" value={passwordForm.new} onChange={e => setPasswordForm({ ...passwordForm, new: e.target.value })} required />
                                             </div>
                                             <div className="space-y-2">
-                                                <Label>Potvrdit nové heslo</Label>
+                                                <Label>{t('confirmNewPassword', 'profile')}</Label>
                                                 <Input type="password" value={passwordForm.confirm} onChange={e => setPasswordForm({ ...passwordForm, confirm: e.target.value })} required />
                                             </div>
-                                            <Button type="submit" className="w-full">Aktualizovat heslo</Button>
+                                            <Button type="submit" className="w-full">{t('updatePassword', 'profile')}</Button>
                                         </form>
                                     </div>
 
                                     <div className="pt-4 border-t border-border/50">
-                                        <Button variant="outline" className="w-full" onClick={() => setIsProfileOpen(false)}>Zavřít</Button>
+                                        <Button variant="outline" className="w-full" onClick={() => setIsProfileOpen(false)}>{t('close', 'common')}</Button>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={!!messagingClient} onOpenChange={(open: boolean) => !open && setMessagingClient(null)}>
+                    <DialogContent className="max-w-md p-6">
+                        <DialogHeader>
+                            <DialogTitle>{t('messageClient', 'trainer')}: {messagingClient?.username}</DialogTitle>
+                            <DialogDescription>{t('sendMessageDesc', 'trainer')}</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 pt-4">
+                            <textarea
+                                className="w-full bg-background border border-border/50 rounded-xl p-3 text-sm focus:ring-1 focus:ring-primary outline-none min-h-[100px]"
+                                placeholder={t('typeMessage', 'tabs')}
+                                value={initiateMessageText}
+                                onChange={(e) => setInitiateMessageText(e.target.value)}
+                                disabled={isInitiating}
+                            />
+                            <div className="flex justify-end gap-2">
+                                <Button variant="ghost" onClick={() => setMessagingClient(null)} disabled={isInitiating}>{t('cancel', 'common')}</Button>
+                                <Button onClick={handleInitiateMessage} disabled={isInitiating || !initiateMessageText.trim()}>
+                                    {isInitiating ? t('sending', 'tabs') : t('send', 'tabs')}
+                                </Button>
                             </div>
                         </div>
                     </DialogContent>

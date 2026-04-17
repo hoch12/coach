@@ -34,13 +34,11 @@ The app will be available at `http://localhost:8080`, and the backend API is pro
 ### Features
 - **Authentication**: Secure login, registration, and protected routing.
 - **Multi-Role System**: Admin, Trainer, and Client roles with dedicated dashboards.
-- **Admin Dashboard**: `/admin` area to create trainer accounts, assign clients to trainers, and manage users.
-- **Trainer Dashboard**: `/trainer` area to manage clients, view their plans, handle bookings and messages.
-- **Profile**: Edit your answers and base statistics.
-- **Personalized Onboarding**: Form with multi-select components for granular data gathering.
-- **Dynamic Plan Generation**: Plans adjust based on exact answers including dietary extremes, specific injuries, and exact allergies.
-- **Session Booking**: Clients can book training sessions; trainers approve or decline them.
-- **Messaging**: Direct Client-Trainer messaging system.
+- **Modernized Admin Dashboard**: Specialized "Manage Clients" and "Manage Trainers" sections with responsive communication hub.
+- **Trainer Intelligence**: Dashboard for trainers to monitor assigned clients' workout logs, nutrition history, and tracking metrics.
+- **Advanced Localization**: Industry-standard Czech/English support across the entire platform, including all management interfaces.
+- **Session Booking**: Clients can book training sessions; trainers approve or decline them via integrated calendar.
+- **Messaging**: Professional dual-pane chat system for direct communication between all roles.
 
 ## Deployment Details
 The application uses a dynamic API routing utility (`getApiUrl`) which automatically switches between the local Vite proxy (development) and the production Render backend based on the environment. This ensures cross-origin compatibility when hosted on GitHub Pages.

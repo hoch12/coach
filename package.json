@@ -1,11 +1,11 @@
 {
   "name": "coach-e",
   "private": true,
-  "version": "2.3.6",
+  "version": "2.10.0",
   "type": "module",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"vite\"",
-    "server": "node --watch server/index.js",
+    "server": "node server/index.js",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

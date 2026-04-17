@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -14,8 +14,12 @@ import { TrackingTab } from "@/components/dashboard/TrackingTab";
 import { SupportTab } from "@/components/dashboard/SupportTab";
 import { BookingCalendar } from "@/components/BookingCalendar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { getApiUrl } from "@/lib/utils";
+import { generateTrainingSplit } from "@/lib/generators/trainingGenerator";
+import { generateNutritionPlan } from "@/lib/generators/nutritionGenerator";
+import { generateLifestylePlan } from "@/lib/generators/lifestyleGenerator";
 
 const UserBookingsList = () => {
   const { token } = useAuth();
@@ -66,70 +70,89 @@ const UserBookingsList = () => {
   );
 };
 
-const navItems = [
-  { id: "training", label: "Training", icon: Dumbbell },
-  { id: "nutrition", label: "Nutrition", icon: Utensils },
-  { id: "lifestyle", label: "Lifestyle", icon: Brain },
-  { id: "tracking", label: "Progress", icon: BarChart3 },
-  { id: "sessions", label: "Sessions", icon: Calendar },
-  { id: "support", label: "Coach Support", icon: MessageCircle },
-];
-
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, token, logout } = useAuth();
-  const [plan, setPlan] = useState<GeneratedPlan | null>(null);
+  const { language, setLanguage, t } = useLanguage();
+  const [basePlan, setBasePlan] = useState<GeneratedPlan | null>(null);
+  const [profile, setProfile] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState("training");
   const [isPlanLoading, setIsPlanLoading] = useState(true);
 
+  const navItems = [
+    { id: "training", label: t('training', 'sidebar'), icon: Dumbbell },
+    { id: "nutrition", label: t('nutrition', 'sidebar'), icon: Utensils },
+    { id: "lifestyle", label: t('lifestyle', 'sidebar'), icon: Brain },
+    { id: "tracking", label: t('progress', 'sidebar'), icon: BarChart3 },
+    { id: "sessions", label: t('sessions', 'sidebar'), icon: Calendar },
+    { id: "support", label: t('support', 'sidebar'), icon: MessageCircle },
+  ];
+
+  // Re-generate plan locally based on current language
+  const plan = useMemo(() => {
+    if (!basePlan || !profile) return basePlan;
+    if (language === 'en') return basePlan;
+
+    // If language is CS, we re-generate to ensure tips and descriptions are translated
+    try {
+      return {
+        ...basePlan,
+        trainingSplit: generateTrainingSplit(profile, 'cs'),
+        nutrition: generateNutritionPlan(profile, 'cs'),
+        lifestyle: generateLifestylePlan(profile, 'cs'),
+      };
+    } catch (e) {
+      console.error("Local plan re-generation failed:", e);
+      return basePlan;
+    }
+  }, [basePlan, profile, language]);
+
   useEffect(() => {
-    const fetchPlan = async () => {
+    const fetchData = async () => {
       if (!token) {
         setIsPlanLoading(false);
         return;
       }
 
       try {
-        const res = await fetch(getApiUrl("/api/plan"), {
+        // Fetch Plan
+        const planRes = await fetch(getApiUrl("/api/plan"), {
           headers: { Authorization: `Bearer ${token}` }
         });
 
-        if (res.ok) {
-          const data = await res.json();
+        if (planRes.ok) {
+          const data = await planRes.json();
           if (data) {
             const actualPlan = data.plan_data ? JSON.parse(data.plan_data) : data;
-            setPlan(actualPlan);
+            setBasePlan(actualPlan);
             try {
               localStorage.setItem("fitforge-plan", JSON.stringify(actualPlan));
             } catch (e) { }
-          } else {
-            navigate("/onboarding");
           }
         } else {
           const stored = localStorage.getItem("fitforge-plan");
-          if (stored) {
-            setPlan(JSON.parse(stored));
-          } else {
-            navigate("/onboarding");
-          }
+          if (stored) setBasePlan(JSON.parse(stored));
+        }
+
+        // Fetch Profile for dynamic re-generation
+        const profileRes = await fetch(getApiUrl("/api/profile"), {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          setProfile(profileData);
         }
       } catch (e) {
-        const stored = localStorage.getItem("fitforge-plan");
-        if (stored) {
-          setPlan(JSON.parse(stored));
-        } else {
-          navigate("/onboarding");
-        }
+        console.error("Dashboard data fetch failed:", e);
       } finally {
         setIsPlanLoading(false);
       }
     };
 
-    fetchPlan();
+    fetchData();
   }, [token, navigate]);
 
   if (isPlanLoading) return <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">Loading your personalized plan...</div>;
-  if (!plan) return null;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -159,17 +182,14 @@ const Dashboard = () => {
         </nav>
 
         <div className="p-3 border-t border-border/50">
-          <button
-            onClick={() => navigate("/profile")}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
+          <div className="flex items-center gap-3 w-full p-3 mb-1 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-xl transition-all cursor-pointer" onClick={() => navigate("/profile")}>
             {user?.profile_image ? (
               <img src={user.profile_image} alt="Avatar" className="h-4 w-4 rounded-full object-cover" />
             ) : (
               <User className="h-4 w-4" />
             )}
-            My Profile
-          </button>
+            {t('myProfile', 'sidebar')}
+          </div>
 
           {user?.role === "admin" && (
             <button
@@ -189,7 +209,7 @@ const Dashboard = () => {
             className="w-full flex items-center gap-3 px-4 py-3 mt-1 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
             <LogOut className="h-4 w-4" />
-            Sign Out
+            {t('signOut', 'sidebar')}
           </button>
         </div>
       </aside>
@@ -201,13 +221,27 @@ const Dashboard = () => {
           <div className="flex items-center justify-between px-6 py-4">
             <div>
               <h1 className="text-xl font-display font-bold">
-                {navItems.find((n) => n.id === activeTab)?.label} Plan
+                {navItems.find((n) => n.id === activeTab)?.label}
               </h1>
-              <p className="text-sm text-muted-foreground">Your personalized program</p>
+              <p className="text-sm text-muted-foreground">{t('personalizedProgram', 'tabs')}</p>
             </div>
 
             {/* Desktop Logout/Profile */}
             <div className="hidden md:flex items-center gap-3">
+              <div className="flex items-center bg-secondary/50 rounded-lg p-1 mr-2">
+                <button 
+                  onClick={() => setLanguage('en')} 
+                  className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  EN
+                </button>
+                <button 
+                  onClick={() => setLanguage('cs')} 
+                  className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'cs' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  CS
+                </button>
+              </div>
               <Button
                 variant="ghost"
                 size="sm"
@@ -215,7 +249,7 @@ const Dashboard = () => {
                 className="text-muted-foreground"
               >
                 <User className="h-4 w-4 mr-2" />
-                Profile
+                {t('profile', 'common')}
               </Button>
               <Button
                 variant="ghost"
@@ -224,7 +258,7 @@ const Dashboard = () => {
                 className="text-destructive hover:bg-destructive/10"
               >
                 <LogOut className="h-4 w-4 mr-2" />
-                Logout
+                {t('logout', 'common')}
               </Button>
             </div>
           </div>
@@ -266,24 +300,34 @@ const Dashboard = () => {
         </header>
 
         {/* Quick stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 pt-6">
-          <QuickStat icon={Flame} label="Calories" value={`${plan.nutrition.calories}`} unit="kcal" />
-          <QuickStat icon={TrendingUp} label="Protein" value={`${plan.nutrition.protein}`} unit="g" />
-          <QuickStat icon={Dumbbell} label="Training Days" value={`${plan.trainingSplit.length}`} unit="/week" />
-          <QuickStat icon={Moon} label="Habits" value={`${plan.lifestyle.habits.length}`} unit="daily" />
-        </div>
+        {plan && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 pt-6">
+            <QuickStat icon={Flame} label={t('calories', 'dashboard')} value={plan?.nutrition?.calories ? `${plan.nutrition.calories}` : "-"} unit="kcal" />
+            <QuickStat icon={TrendingUp} label={t('protein', 'dashboard')} value={plan?.nutrition?.protein ? `${plan.nutrition.protein}` : "-"} unit="g" />
+            <QuickStat icon={Dumbbell} label={t('trainingDays', 'dashboard')} value={plan?.trainingSplit?.length ? `${plan.trainingSplit.length}` : "-"} unit={t('perWeek', 'dashboard')} />
+            <QuickStat icon={Moon} label={t('habits', 'dashboard')} value={plan?.lifestyle?.habits?.length ? `${plan.lifestyle.habits.length}` : "-"} unit={t('daily', 'dashboard')} />
+          </div>
+        )}
 
         {/* Tab content */}
         <div className="flex-1 px-6 py-6 overflow-y-auto">
+          {!plan && activeTab !== "support" && activeTab !== "sessions" ? (
+             <div className="flex flex-col items-center justify-center h-full text-center space-y-6 pt-12">
+                <Dumbbell className="h-16 w-16 text-primary opacity-50" />
+                <h2 className="text-3xl font-bold font-display">{t('noPlan', 'dashboard')}</h2>
+                <p className="text-muted-foreground max-w-md">{t('noPlanDesc', 'dashboard')}</p>
+                <Button variant="hero" onClick={() => navigate("/onboarding")} className="mt-4">{t('startOnboarding', 'dashboard')}</Button>
+             </div>
+          ) : (
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-            {activeTab === "training" && <TrainingTab plan={plan} />}
-            {activeTab === "nutrition" && <NutritionTab plan={plan} />}
-            {activeTab === "lifestyle" && <LifestyleTab plan={plan} />}
+            {activeTab === "training" && plan && <TrainingTab plan={plan} />}
+            {activeTab === "nutrition" && plan && <NutritionTab plan={plan} />}
+            {activeTab === "lifestyle" && plan && <LifestyleTab plan={plan} />}
             {activeTab === "tracking" && <TrackingTab />}
             {activeTab === "sessions" && (
               <div className="space-y-6">
@@ -294,7 +338,7 @@ const Dashboard = () => {
                     </div>
                     <div className="space-y-4">
                       <h3 className="text-lg font-bold flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-primary" /> My Schedule
+                        <Calendar className="h-5 w-5 text-primary" /> {t('mySchedule', 'sessions')}
                       </h3>
                       <UserBookingsList />
                     </div>
@@ -302,14 +346,15 @@ const Dashboard = () => {
                 ) : (
                   <div className="glass-card rounded-2xl p-12 text-center space-y-4 max-w-2xl mx-auto">
                     <Calendar className="h-12 w-12 text-primary mx-auto opacity-50" />
-                    <h2 className="text-xl font-bold">No Trainer Assigned</h2>
-                    <p className="text-muted-foreground">You need to have a personal trainer assigned to book gym sessions. Contact support to get started.</p>
+                    <h2 className="text-xl font-bold">{t('noTrainerTitle', 'sessions')}</h2>
+                    <p className="text-muted-foreground">{t('noTrainerDesc', 'sessions')}</p>
                   </div>
                 )}
               </div>
             )}
             {activeTab === "support" && <SupportTab />}
           </motion.div>
+          )}
         </div>
       </div>
     </div>

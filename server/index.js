@@ -65,13 +65,14 @@ app.post('/api/auth/login', (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET_KEY, { expiresIn: '24h' });
-    res.json({ token, user: { id: user.id, username: user.username, role: user.role, trainer_id: user.trainer_id, profile_image: user.profile_image } });
+    res.json({ token, user: { id: user.id, username: user.username, role: user.role, trainer_id: user.trainer_id, profile_image: user.profile_image, language: user.language } });
 });
 
 app.get('/api/auth/me', authenticateToken, (req, res) => {
-    const stmt = db.prepare('SELECT id, username, role, trainer_id, profile_image FROM users WHERE id = ?');
+    const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
     const user = stmt.get(req.user.id);
     if (user) {
+        delete user.password;
         res.json({ user });
     } else {
         res.status(404).json({ error: 'User not found' });
@@ -92,7 +93,7 @@ app.post('/api/auth/change-password', authenticateToken, (req, res) => {
 });
 
 app.put('/api/user/settings', authenticateToken, (req, res) => {
-    const { username, profile_image } = req.body;
+    const { username, profile_image, language } = req.body;
 
     try {
         if (username) {
@@ -108,7 +109,12 @@ app.put('/api/user/settings', authenticateToken, (req, res) => {
             db.prepare('UPDATE users SET profile_image = ? WHERE id = ?').run(profile_image, req.user.id);
         }
 
-        const updatedUser = db.prepare('SELECT id, username, role, trainer_id, profile_image FROM users WHERE id = ?').get(req.user.id);
+        if (language !== undefined) {
+            db.prepare('UPDATE users SET language = ? WHERE id = ?').run(language, req.user.id);
+        }
+
+        const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+        if (updatedUser) delete updatedUser.password;
         res.json({ success: true, user: updatedUser });
     } catch (e) {
         console.error("Settings update error:", e);
@@ -132,6 +138,24 @@ app.get('/api/profile', authenticateToken, (req, res) => {
 
 app.post('/api/profile', authenticateToken, (req, res) => {
     try {
+        let targetUserId = req.user.id;
+
+        if (req.body.userId) {
+            // Check if requester is authorized
+            if (req.user.role === 'admin') {
+                targetUserId = req.body.userId;
+            } else if (req.user.role === 'trainer') {
+                const checkClient = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(req.body.userId);
+                if (checkClient && checkClient.trainer_id === req.user.id) {
+                    targetUserId = req.body.userId;
+                } else {
+                    return res.status(403).json({ error: 'Not authorized to edit this client' });
+                }
+            } else {
+                return res.status(403).json({ error: 'Not authorized' });
+            }
+        }
+
         const stmt = db.prepare(`
         INSERT INTO profiles (user_id, age, weight, height, gender, profile_data)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -141,7 +165,7 @@ app.post('/api/profile', authenticateToken, (req, res) => {
       `);
 
         stmt.run(
-            req.user.id,
+            targetUserId,
             req.body.age || null,
             req.body.weight || null,
             req.body.height || null,
@@ -163,19 +187,36 @@ app.get('/api/plan', authenticateToken, (req, res) => {
 });
 
 app.post('/api/plan', authenticateToken, (req, res) => {
-    const { plan_data } = req.body;
+    const { plan_data, userId } = req.body;
+    let targetUserId = req.user.id;
+
+    if (userId) {
+        if (req.user.role === 'admin') {
+            targetUserId = userId;
+        } else if (req.user.role === 'trainer') {
+            const checkClient = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(userId);
+            if (checkClient && checkClient.trainer_id === req.user.id) {
+                targetUserId = userId;
+            } else {
+                return res.status(403).json({ error: 'Not authorized to edit this client' });
+            }
+        } else {
+            return res.status(403).json({ error: 'Not authorized' });
+        }
+    }
+
     const stmt = db.prepare(`
     INSERT INTO plans (user_id, plan_data) VALUES (?, ?)
     ON CONFLICT(user_id) DO UPDATE SET plan_data=excluded.plan_data
   `);
-    stmt.run(req.user.id, JSON.stringify(plan_data));
+    stmt.run(targetUserId, JSON.stringify(plan_data));
     res.json({ success: true });
 });
 
 // --- Admin Routes ---
 app.get('/api/admin/users', authenticateToken, isAdmin, (req, res) => {
-    const stmt = db.prepare('SELECT id, username, role, trainer_id, profile_image FROM users');
-    const users = stmt.all();
+    const stmt = db.prepare('SELECT * FROM users');
+    const users = stmt.all().map(u => { delete u.password; return u; });
     res.json(users);
 });
 
@@ -236,8 +277,9 @@ app.get('/api/admin/users/:id/plan', authenticateToken, isTrainer, (req, res) =>
 
 // --- Admin/Trainer/Client Management ---
 app.get('/api/admin/trainers', authenticateToken, isAdmin, (req, res) => {
-    const stmt = db.prepare("SELECT id, username FROM users WHERE role = 'trainer'");
-    res.json(stmt.all());
+    const stmt = db.prepare("SELECT * FROM users WHERE role = 'trainer'");
+    const trainers = stmt.all().map(u => { delete u.password; return u; });
+    res.json(trainers);
 });
 
 app.post('/api/admin/assign-trainer', authenticateToken, isAdmin, (req, res) => {
@@ -254,29 +296,44 @@ app.get('/api/trainer/clients', authenticateToken, isTrainer, (req, res) => {
 
 // --- Support / Chat Routes ---
 app.get('/api/support', authenticateToken, (req, res) => {
-    if (req.user.role === 'trainer') {
-        const stmt = db.prepare(`
-            SELECT s.*, u.username 
-            FROM support_tickets s 
-            JOIN users u ON s.user_id = u.id 
-            WHERE s.trainer_id = ? 
-            ORDER BY s.created_at DESC
-        `);
-        return res.json(stmt.all(req.user.id));
+    let query, params;
+    if (req.user.role === 'admin') {
+        return res.redirect('/api/admin/support');
     }
 
-    // Client view
-    const stmt = db.prepare('SELECT * FROM support_tickets WHERE user_id = ? ORDER BY created_at DESC');
-    res.json(stmt.all(req.user.id));
+    if (req.user.role === 'trainer') {
+        query = `
+            SELECT s.id, s.user_id, s.trainer_id, s.message, s.status, s.created_at, s.sender_id,
+                   u.username 
+            FROM support_tickets s 
+            LEFT JOIN users u ON s.user_id = u.id 
+            WHERE s.user_id = ? OR s.trainer_id = ?
+            ORDER BY s.created_at ASC
+        `;
+        params = [req.user.id, req.user.id];
+    } else {
+        query = `
+            SELECT s.*, u.username FROM support_tickets s 
+            LEFT JOIN users u ON s.user_id = u.id
+            WHERE s.user_id = ? 
+            ORDER BY s.created_at ASC
+        `;
+        params = [req.user.id];
+    }
+
+    const stmt = db.prepare(query);
+    res.json(stmt.all(...params));
 });
 
 app.get('/api/admin/support', authenticateToken, isAdmin, (req, res) => {
     const stmt = db.prepare(`
-        SELECT s.*, u.username 
+        SELECT 
+            s.id, s.user_id, s.trainer_id, s.message, s.status, s.created_at, s.sender_id,
+            u.username 
         FROM support_tickets s 
-        JOIN users u ON s.user_id = u.id 
+        LEFT JOIN users u ON s.user_id = u.id 
         WHERE s.trainer_id IS NULL 
-        ORDER BY s.created_at DESC
+        ORDER BY s.created_at ASC
     `);
     res.json(stmt.all());
 });
@@ -285,48 +342,81 @@ app.post('/api/support', authenticateToken, (req, res) => {
     const { message } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
-    const { toAdmin } = req.body;
-    const isToAdmin = toAdmin === true || toAdmin === 'true'; // Support both boolean and string just in case
-    const user = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(req.user.id);
+    const userStmt = db.prepare('SELECT trainer_id FROM users WHERE id = ?');
+    const user = userStmt.get(req.user.id);
+    const trainerId = user?.trainer_id || null;
 
-    // Force null if isToAdmin is true OR if user has no trainer assigned
-    const trainerId = (isToAdmin || !user?.trainer_id) ? null : user.trainer_id;
+    const stmt = db.prepare('INSERT INTO support_tickets (user_id, trainer_id, message, sender_id) VALUES (?, ?, ?, ?)');
+    const info = stmt.run(req.user.id, trainerId, message, req.user.id);
 
-    console.log(`[Support Routing] Message from: ${req.user.username}. toAdmin flag: ${toAdmin} (interpreted as ${isToAdmin}). User's trainer_id: ${user?.trainer_id}. Target trainerId: ${trainerId}`);
+    res.json({
+        success: true,
+        id: info.lastInsertRowid,
+        recipient: trainerId ? 'trainer' : 'admin'
+    });
+});
 
-    const stmt = db.prepare('INSERT INTO support_tickets (user_id, trainer_id, message) VALUES (?, ?, ?)');
-    const info = stmt.run(req.user.id, trainerId, message);
+app.post('/api/support/trainer-initiate', authenticateToken, isTrainer, (req, res) => {
+    const { clientId, message } = req.body;
+    if (!clientId || !message) return res.status(400).json({ error: 'Client ID and message required' });
+
+    const clientStmt = db.prepare('SELECT trainer_id FROM users WHERE id = ?');
+    const client = clientStmt.get(clientId);
+    
+    if (!client || client.trainer_id !== req.user.id) {
+        return res.status(403).json({ error: 'Not authorized to message this client' });
+    }
+
+    const stmt = db.prepare(`
+        INSERT INTO support_tickets (user_id, trainer_id, message, sender_id, status) 
+        VALUES (?, ?, ?, ?, 'open')
+    `);
+    const info = stmt.run(clientId, req.user.id, message, req.user.id);
+
     res.json({ success: true, id: info.lastInsertRowid });
 });
 
 app.post('/api/support/:id/reply', authenticateToken, (req, res) => {
     const { reply } = req.body;
-    // Check if user is admin OR the trainer assigned to this ticket
-    const ticket = db.prepare('SELECT * FROM support_tickets WHERE id = ?').get(req.params.id);
+    const ticketId = req.params.id;
+
+    if (!reply) return res.status(400).json({ error: 'Reply is required' });
+
+    const ticketStmt = db.prepare('SELECT * FROM support_tickets WHERE id = ?');
+    const ticket = ticketStmt.get(ticketId);
+
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
-    if (req.user.role !== 'admin' && ticket.trainer_id !== req.user.id) {
-        return res.sendStatus(403);
-    }
-
+    // Multi-message logic: Insert a NEW record instead of updating the old one
     const stmt = db.prepare(`
-        UPDATE support_tickets 
-        SET reply = ?, status = 'closed', replied_at = CURRENT_TIMESTAMP 
-        WHERE id = ?
+        INSERT INTO support_tickets (user_id, trainer_id, message, sender_id, status)
+        VALUES (?, ?, ?, ?, 'open')
     `);
-    stmt.run(reply, req.params.id);
-    res.json({ success: true });
+    
+    // Maintain the thread context (user_id and trainer_id)
+    const info = stmt.run(ticket.user_id, ticket.trainer_id, reply, req.user.id);
+
+    res.json({ success: true, id: info.lastInsertRowid });
 });
 
 app.post('/api/admin/support/:id/reply', authenticateToken, isAdmin, (req, res) => {
     const { reply } = req.body;
+    const ticketId = req.params.id;
+
+    if (!reply) return res.status(400).json({ error: 'Reply is required' });
+
+    const ticketStmt = db.prepare('SELECT * FROM support_tickets WHERE id = ?');
+    const ticket = ticketStmt.get(ticketId);
+
+    if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+
     const stmt = db.prepare(`
-        UPDATE support_tickets 
-        SET reply = ?, status = 'closed', replied_at = CURRENT_TIMESTAMP 
-        WHERE id = ? AND trainer_id IS NULL
+        INSERT INTO support_tickets (user_id, trainer_id, message, sender_id, status)
+        VALUES (?, ?, ?, ?, 'open')
     `);
-    stmt.run(reply, req.params.id);
-    res.json({ success: true });
+    
+    const info = stmt.run(ticket.user_id, ticket.trainer_id, reply, req.user.id);
+    res.json({ success: true, id: info.lastInsertRowid });
 });
 
 // --- Booking Routes ---
@@ -431,6 +521,43 @@ app.post('/api/logs/workout', authenticateToken, (req, res) => {
     const stmt = db.prepare('INSERT INTO workout_logs (user_id, date, exercise, sets, reps, weight) VALUES (?, ?, ?, ?, ?, ?)');
     const info = stmt.run(req.user.id, date, exercise, sets, reps, weight);
     res.json({ success: true, id: info.lastInsertRowid });
+});
+
+// --- Trainer-Client Progress Access ---
+app.get('/api/trainer/client/:id/logs/workout', authenticateToken, isTrainer, (req, res) => {
+    const clientId = req.params.id;
+    // Check if client belongs to trainer
+    const client = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(clientId);
+    if (!client || client.trainer_id !== req.user.id) {
+        return res.status(403).json({ error: 'Unauthorized access to client data' });
+    }
+
+    const stmt = db.prepare('SELECT * FROM workout_logs WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT 50');
+    res.json(stmt.all(clientId));
+});
+
+app.get('/api/trainer/client/:id/logs/nutrition', authenticateToken, isTrainer, (req, res) => {
+    const clientId = req.params.id;
+    // Check if client belongs to trainer
+    const client = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(clientId);
+    if (!client || client.trainer_id !== req.user.id) {
+        return res.status(403).json({ error: 'Unauthorized access to client data' });
+    }
+
+    const stmt = db.prepare('SELECT * FROM nutrition_logs WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT 50');
+    res.json(stmt.all(clientId));
+});
+
+app.get('/api/trainer/client/:id/logs/daily', authenticateToken, isTrainer, (req, res) => {
+    const clientId = req.params.id;
+    // Check if client belongs to trainer
+    const client = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(clientId);
+    if (!client || client.trainer_id !== req.user.id) {
+        return res.status(403).json({ error: 'Unauthorized access to client data' });
+    }
+
+    const stmt = db.prepare('SELECT * FROM daily_tracking WHERE user_id = ? ORDER BY date DESC LIMIT 30');
+    res.json(stmt.all(clientId));
 });
 
 app.get('/api/logs/nutrition', authenticateToken, (req, res) => {

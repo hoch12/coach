@@ -22,8 +22,8 @@ export const ProtectedRoute = ({ adminOnly = false }: ProtectedRouteProps) => {
     }
 
     if (!adminOnly) {
-        if (user.role === "admin") return <Navigate to="/admin" replace />;
-        if (user.role === "trainer" && !location.pathname.startsWith("/trainer") && !location.pathname.startsWith("/profile")) {
+        if (user.role === "admin" && !location.pathname.startsWith("/profile") && !location.pathname.startsWith("/onboarding")) return <Navigate to="/admin" replace />;
+        if (user.role === "trainer" && !location.pathname.startsWith("/trainer") && !location.pathname.startsWith("/profile") && !location.pathname.startsWith("/onboarding")) {
             return <Navigate to="/trainer" replace />;
         }
     }

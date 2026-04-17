@@ -1,25 +1,26 @@
 import { OnboardingData } from "@/types/onboarding";
 import { Label } from "@/components/ui/label";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Props {
   data: OnboardingData;
   onChange: (partial: Partial<OnboardingData>) => void;
 }
 
-const obstacleOptions = [
-  { id: "lack-of-time", label: "Lack of time" },
-  { id: "low-motivation", label: "Low motivation" },
-  { id: "stress", label: "High stress" },
-  { id: "inconsistent-routine", label: "Inconsistent routine" },
-  { id: "poor-diet", label: "Poor diet" },
-  { id: "other", label: "Other limitations" },
+const getObstacleOptions = (t: any) => [
+  { id: "lack-of-time", label: t('lackOfTime', 'onboarding') },
+  { id: "low-motivation", label: t('lowMotivation', 'onboarding') },
+  { id: "stress", label: t('highStress', 'onboarding') },
+  { id: "inconsistent-routine", label: t('inconsistentRoutine', 'onboarding') },
+  { id: "poor-diet", label: t('poorDiet', 'onboarding') },
+  { id: "other", label: t('otherLimitations', 'onboarding') },
 ];
 
-const advantageOptions = [
-  { id: "gym-access", label: "Gym access" },
-  { id: "home-equipment", label: "Home equipment" },
-  { id: "time-flexibility", label: "Time flexibility" },
-  { id: "previous-experience", label: "Previous experience" },
+const getAdvantageOptions = (t: any) => [
+  { id: "gym-access", label: t('gymAccess', 'onboarding') },
+  { id: "home-equipment", label: t('homeEquipment', 'onboarding') },
+  { id: "time-flexibility", label: t('timeFlexibility', 'onboarding') },
+  { id: "previous-experience", label: t('prevExperience', 'onboarding') },
 ];
 
 function MultiSelect({ items, selected, onToggle }: {
@@ -50,6 +51,10 @@ function MultiSelect({ items, selected, onToggle }: {
 }
 
 export function StepObstacles({ data, onChange }: Props) {
+  const { t } = useLanguage();
+  const obstacleOptions = getObstacleOptions(t);
+  const advantageOptions = getAdvantageOptions(t);
+
   const toggleObstacle = (id: string) => {
     const next = data.obstacles.includes(id)
       ? data.obstacles.filter((o) => o !== id)
@@ -65,13 +70,13 @@ export function StepObstacles({ data, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-3">
-        <Label>What obstacles do you face?</Label>
+    <div className="space-y-10">
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('obstaclesFace', 'onboarding')}</Label>
         <MultiSelect items={obstacleOptions} selected={data.obstacles} onToggle={toggleObstacle} />
       </div>
-      <div className="space-y-3">
-        <Label>What advantages do you have?</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('advantagesHave', 'onboarding')}</Label>
         <MultiSelect items={advantageOptions} selected={data.advantages} onToggle={toggleAdvantage} />
       </div>
     </div>

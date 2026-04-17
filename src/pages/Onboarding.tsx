@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Dumbbell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,32 +15,42 @@ import { validateStepData } from "@/types/onboarding";
 import { toast } from "sonner";
 import { getApiUrl } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useEffect } from "react";
 
-const STEPS = [
-  { id: "personal", title: "Personal Data", subtitle: "Tell us about yourself" },
-  { id: "goals", title: "Your Goals", subtitle: "What do you want to achieve?" },
-  { id: "obstacles", title: "Obstacles & Advantages", subtitle: "What helps or holds you back?" },
-  { id: "lifestyle", title: "Lifestyle & Mindset", subtitle: "Your daily patterns" },
-  { id: "nutrition", title: "Nutrition", subtitle: "Your eating habits" },
-  { id: "plan-style", title: "Plan Preference", subtitle: "How should we structure your plan?" },
+const getSteps = (t: any) => [
+  { id: "personal", title: t('personalData', 'onboarding'), subtitle: t('tellUsAbout', 'onboarding') },
+  { id: "goals", title: t('fitnessGoals', 'onboarding'), subtitle: t('whatAchieve', 'onboarding') },
+  { id: "obstacles", title: t('obstaclesTitle', 'onboarding'), subtitle: t('obstaclesSubtitle', 'onboarding') },
+  { id: "lifestyle", title: t('lifestyleTitle', 'onboarding'), subtitle: t('lifestyleSubtitle', 'onboarding') },
+  { id: "nutrition", title: t('nutritionTitle', 'onboarding'), subtitle: t('nutritionSubtitle', 'onboarding') },
+  { id: "plan-style", title: t('planPreference', 'onboarding'), subtitle: t('planStyleSubtitle', 'onboarding') },
 ];
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const { token, user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const clientId = searchParams.get("client_id");
+  const { token, user, logout } = useAuth();
+  const { t, language, setLanguage } = useLanguage();
+  const STEPS = getSteps(t);
 
   useEffect(() => {
     if (user && (user.role === 'admin' || user.role === 'trainer')) {
-      navigate(user.role === 'admin' ? '/admin' : '/trainer');
+      if (!clientId) {
+        navigate(user.role === 'admin' ? '/admin' : '/trainer');
+      }
     }
-  }, [user, navigate]);
+  }, [user, navigate, clientId]);
 
   const [step, setStep] = useState(() => {
+    if (clientId) return 0;
     const saved = localStorage.getItem("fitforge-onboarding-step");
     return saved ? parseInt(saved, 10) : 0;
   });
+
   const [data, setData] = useState<OnboardingData>(() => {
+    if (clientId) return defaultOnboardingData;
     const saved = localStorage.getItem("fitforge-onboarding-data");
     return saved ? JSON.parse(saved) : defaultOnboardingData;
   });
@@ -50,14 +60,18 @@ const Onboarding = () => {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch(getApiUrl("/api/profile"), {
+        const url = clientId 
+          ? getApiUrl(`/api/admin/users/${clientId}/profile`) 
+          : getApiUrl("/api/profile");
+          
+        const res = await fetch(url, {
           headers: { "Authorization": `Bearer ${token}` }
         });
         if (res.ok) {
           const profileData = await res.json();
           if (profileData && profileData.age) {
-            // merge data from API with default
-            setData(prev => ({ ...defaultOnboardingData, ...profileData, ...prev }));
+            // Use API data directly for specific profile editing
+            setData({ ...defaultOnboardingData, ...profileData });
           }
         }
       } catch (e) {
@@ -67,16 +81,20 @@ const Onboarding = () => {
       }
     };
     fetchProfile();
-  }, [token]);
+  }, [token, clientId]);
 
   // Save changes to localStorage
   useEffect(() => {
-    localStorage.setItem("fitforge-onboarding-step", step.toString());
-  }, [step]);
+    if (!clientId) {
+      localStorage.setItem("fitforge-onboarding-step", step.toString());
+    }
+  }, [step, clientId]);
 
   useEffect(() => {
-    localStorage.setItem("fitforge-onboarding-data", JSON.stringify(data));
-  }, [data]);
+    if (!clientId) {
+      localStorage.setItem("fitforge-onboarding-data", JSON.stringify(data));
+    }
+  }, [data, clientId]);
 
   const updateData = (partial: Partial<OnboardingData>) => {
     setData((prev) => ({ ...prev, ...partial }));
@@ -85,7 +103,7 @@ const Onboarding = () => {
   const handleNext = () => {
     const validation = validateStepData(step, data);
     if (!validation.success) {
-      toast.error(validation.message);
+      toast.error(t(validation.message || 'error', 'onboarding'));
       return;
     }
     setStep(step + 1);
@@ -94,12 +112,13 @@ const Onboarding = () => {
   const handleFinish = async () => {
     const validation = validateStepData(step, data);
     if (!validation.success) {
-      toast.error(validation.message);
+      toast.error(t(validation.message || 'error', 'onboarding'));
       return;
     }
 
-    const finalData = { ...data, appVersion: "1.3.0" };
-    const plan = generatePlan(finalData);
+    const finalData: any = { ...data, appVersion: "1.3.0" };
+    if (clientId) finalData.userId = parseInt(clientId, 10);
+    const plan = generatePlan(finalData, language);
 
     // Save to our backend
     try {
@@ -118,18 +137,26 @@ const Onboarding = () => {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ plan_data: plan })
+        body: JSON.stringify({ 
+           plan_data: plan,
+           userId: clientId ? parseInt(clientId, 10) : undefined 
+        })
       });
     } catch (e) {
       console.error(e);
       toast.error("Failed to save plan entirely, proceeding locally.");
     }
 
-    // Store in localStorage for immediate visual sync if necessary
-    localStorage.removeItem("fitforge-onboarding-step");
-    localStorage.removeItem("fitforge-onboarding-data");
-    localStorage.setItem("fitforge-plan", JSON.stringify(plan));
-    navigate("/dashboard");
+    if (clientId) {
+      toast.success("Client plan saved.");
+      navigate("/trainer");
+    } else {
+      // Store in localStorage for immediate visual sync if necessary
+      localStorage.removeItem("fitforge-onboarding-step");
+      localStorage.removeItem("fitforge-onboarding-data");
+      localStorage.setItem("fitforge-plan", JSON.stringify(plan));
+      navigate("/dashboard");
+    }
   };
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-background"><p>Loading your data...</p></div>;
@@ -159,16 +186,29 @@ const Onboarding = () => {
             <span className="font-display font-bold hidden sm:inline">Coach-E</span>
           </button>
           <span className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">
-            Step {step + 1} of {STEPS.length}
+            {t('step', 'onboarding')} {step + 1} {t('of', 'onboarding')} {STEPS.length}
           </span>
         </div>
         <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center bg-background/50 backdrop-blur rounded-lg p-1 mr-2 border border-border/50">
+                <button 
+                  onClick={() => setLanguage('en')} 
+                  className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:text-primary'}`}
+                >
+                  EN
+                </button>
+                <button 
+                  onClick={() => setLanguage('cs')} 
+                  className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'cs' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:text-primary'}`}
+                >
+                  CS
+                </button>
+            </div>
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" onClick={() => {
-            const { logout } = useAuth();
             logout();
             navigate("/login");
           }}>
-            Log Out
+            {t('logout', 'common')}
           </Button>
         </div>
       </header>
@@ -193,6 +233,9 @@ const Onboarding = () => {
             animate={{ opacity: 1, x: 0 }}
             className="mb-8"
           >
+            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-2">
+              {t('step', 'onboarding') || "Step"} {step + 1} / {STEPS.length}
+            </div>
             <h1 className="text-2xl md:text-3xl font-display font-bold mb-1">
               {STEPS[step].title}
             </h1>
@@ -223,17 +266,17 @@ const Onboarding = () => {
             className="text-muted-foreground"
           >
             <ChevronLeft className="mr-1 h-4 w-4" />
-            {canPrev ? "Back" : "Home"}
+            {canPrev ? t('back', 'onboarding') : t('home', 'onboarding')}
           </Button>
 
           {canNext ? (
             <Button variant="hero" onClick={handleNext}>
-              Continue
+              {t('continue', 'onboarding')}
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           ) : (
             <Button variant="hero" onClick={handleFinish}>
-              Generate My Plan
+              {t('generatePlan', 'onboarding')}
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           )}

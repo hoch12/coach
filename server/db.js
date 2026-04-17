@@ -97,15 +97,44 @@ try {
 }
 
 try {
-  db.exec("ALTER TABLE support_tickets ADD COLUMN trainer_id INTEGER");
+  db.exec("ALTER TABLE support_tickets ADD COLUMN sender_id INTEGER");
 } catch (e) {
   // column already exists
 }
 
+// Migration for existing tickets: 
+// 1. Set sender_id of the original message to user_id
+// 2. Extract replies into their own rows
+const migrateReplies = () => {
+  const existingWithReplies = db.prepare("SELECT * FROM support_tickets WHERE reply IS NOT NULL AND reply != ''").all();
+  for (const row of existingWithReplies) {
+    // Determine who was the responder
+    let responderId;
+    if (row.trainer_id) {
+      // Replying as trainer
+      responderId = row.trainer_id;
+    } else {
+      // Replying as admin
+      const admin = db.prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1").get();
+      responderId = admin ? admin.id : 1;
+    }
+
+    // Insert the reply as a fresh message row
+    db.prepare(`
+      INSERT INTO support_tickets (user_id, trainer_id, message, sender_id, created_at, status)
+      VALUES (?, ?, ?, ?, ?, 'closed')
+    `).run(row.user_id, row.trainer_id, row.reply, responderId, row.replied_at || row.created_at);
+  }
+  // Clear the migrated replies
+  db.exec("UPDATE support_tickets SET reply = NULL WHERE reply IS NOT NULL");
+  // Ensure all messages have a sender_id (default to owner if missing)
+  db.exec("UPDATE support_tickets SET sender_id = user_id WHERE sender_id IS NULL");
+};
+
 try {
-  db.exec("ALTER TABLE users ADD COLUMN profile_image TEXT");
+  migrateReplies();
 } catch (e) {
-  // column already exists
+  console.error("Migration failed:", e.message);
 }
 
 // Add default admin if not exists

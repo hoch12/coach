@@ -8,9 +8,9 @@ import { generateLifestylePlan } from "./generators/lifestyleGenerator";
  * Delegates to specialized generators that use ALL onboarding data
  * for deeply personalized output.
  */
-export function generatePlan(data: OnboardingData): GeneratedPlan {
-  const trainingSplit = generateTrainingSplit(data);
-  const nutrition = generateNutritionPlan(data);
-  const lifestyle = generateLifestylePlan(data);
+export function generatePlan(data: OnboardingData, lang: string = 'en'): GeneratedPlan {
+  const trainingSplit = generateTrainingSplit(data, lang);
+  const nutrition = generateNutritionPlan(data, lang);
+  const lifestyle = generateLifestylePlan(data, lang);
   return { trainingSplit, nutrition, lifestyle };
 }

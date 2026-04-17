@@ -44,17 +44,7 @@ const Login = () => {
                 } else if (data.user.role === "trainer") {
                     navigate("/trainer");
                 } else {
-                    // Let's check if the user has a profile, if not, redirect to onboarding.
-                    const profileRes = await fetch(getApiUrl("/api/profile"), {
-                        headers: { "Authorization": `Bearer ${data.token}` }
-                    });
-                    const profileData = await profileRes.json();
-
-                    if (!profileData || !profileData.age) {
-                        navigate("/onboarding");
-                    } else {
-                        navigate("/dashboard");
-                    }
+                    navigate("/dashboard");
                 }
             } else {
                 toast.error(data.error || "Failed to login");

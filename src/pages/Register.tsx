@@ -51,7 +51,7 @@ const Register = () => {
                 if (loginResponse.ok) {
                     login(loginData.token, loginData.user);
                     toast.success("Account created successfully!");
-                    navigate("/onboarding"); // New users always go to onboarding
+                    navigate("/dashboard");
                 }
             } else {
                 toast.error(data.error || "Failed to register");

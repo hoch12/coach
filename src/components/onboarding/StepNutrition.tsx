@@ -1,6 +1,7 @@
 import { OnboardingData } from "@/types/onboarding";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Props {
   data: OnboardingData;
@@ -28,16 +29,18 @@ const selectBtn = (
   </div>
 );
 
-const allergyOptions = [
-  { id: "none", label: "None" },
-  { id: "lactose", label: "Lactose / Dairy" },
-  { id: "gluten", label: "Gluten" },
-  { id: "nuts", label: "Nuts" },
-  { id: "soy", label: "Soy" },
-  { id: "seafood", label: "Seafood" },
-];
-
 export function StepNutrition({ data, onChange }: Props) {
+  const { t } = useLanguage();
+
+  const allergyOptions = [
+    { id: "none", label: t('none', 'common') },
+    { id: "lactose", label: t('lactose', 'onboarding') },
+    { id: "gluten", label: t('gluten', 'onboarding') },
+    { id: "nuts", label: t('nuts', 'onboarding') },
+    { id: "soy", label: t('soy', 'onboarding') },
+    { id: "seafood", label: t('seafood', 'onboarding') },
+  ];
+
   const toggleAllergy = (id: string) => {
     let current = data.allergies ? data.allergies.split(',').map(s => s.trim()).filter(Boolean) : [];
 
@@ -60,24 +63,24 @@ export function StepNutrition({ data, onChange }: Props) {
   const currentAllergies = data.allergies ? data.allergies.split(',').map(s => s.trim()).filter(Boolean) : ["none"];
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-3">
-        <Label>Dietary Preference</Label>
+    <div className="space-y-10">
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('dietaryPreference', 'onboarding')}</Label>
         {selectBtn(
           [
-            { id: "omnivore", label: "Omnivore" },
-            { id: "vegetarian", label: "Vegetarian" },
-            { id: "vegan", label: "Vegan" },
-            { id: "keto", label: "Keto" },
-            { id: "other", label: "Other" },
+            { id: "omnivore", label: t('omnivore', 'onboarding') },
+            { id: "vegetarian", label: t('vegetarian', 'onboarding') },
+            { id: "vegan", label: t('vegan', 'onboarding') },
+            { id: "keto", label: t('keto', 'onboarding') },
+            { id: "other", label: t('other', 'onboarding') },
           ],
           data.dietaryPreference,
           (id) => onChange({ dietaryPreference: id })
         )}
       </div>
 
-      <div className="space-y-3">
-        <Label>Allergies or Intolerances</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('allergiesIntolerances', 'onboarding')}</Label>
         <div className="flex flex-wrap gap-2">
           {allergyOptions.map((item) => {
             const isSelected = currentAllergies.includes(item.id) || (item.id === "none" && currentAllergies.length === 0);
@@ -97,79 +100,79 @@ export function StepNutrition({ data, onChange }: Props) {
         </div>
       </div>
 
-      <div className="space-y-3">
-        <Label>Budget Limitations</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('budgetLimitations', 'onboarding')}</Label>
         {selectBtn(
           [
-            { id: "tight", label: "Tight Budget" },
-            { id: "moderate", label: "Moderate" },
-            { id: "flexible", label: "Flexible" },
+            { id: "tight", label: t('tightBudget', 'onboarding') },
+            { id: "moderate", label: t('moderate', 'onboarding') },
+            { id: "flexible", label: t('flexible', 'onboarding') },
           ],
           data.budgetLimitation,
           (id) => onChange({ budgetLimitation: id })
         )}
       </div>
 
-      <div className="space-y-3">
-        <Label>Eating Habits</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('eatingHabits', 'onboarding')}</Label>
         {selectBtn(
           [
-            { id: "structured", label: "Structured/Planned" },
-            { id: "intuitive", label: "Intuitive/Spontaneous" },
-            { id: "social", label: "Frequent Social Dining" },
-            { id: "emotional", label: "Emotional/Stress Eater" },
+            { id: "structured", label: t('structuredHabit', 'onboarding') },
+            { id: "intuitive", label: t('intuitiveHabit', 'onboarding') },
+            { id: "social", label: t('socialHabit', 'onboarding') },
+            { id: "emotional", label: t('emotionalHabit', 'onboarding') },
           ],
           data.eatingHabits,
           (id) => onChange({ eatingHabits: id })
         )}
       </div>
 
-      <div className="space-y-3">
-        <Label>Meal Frequency (per day)</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('mealFrequency', 'onboarding')}</Label>
         {selectBtn(
           [
-            { id: "2", label: "2 meals" },
-            { id: "3", label: "3 meals" },
-            { id: "4", label: "4 meals" },
-            { id: "5", label: "5+ meals" },
+            { id: "2", label: t('2meals', 'onboarding') },
+            { id: "3", label: t('3meals', 'onboarding') },
+            { id: "4", label: t('4meals', 'onboarding') },
+            { id: "5", label: t('5plusMeals', 'onboarding') },
           ],
           data.mealFrequency,
           (id) => onChange({ mealFrequency: id })
         )}
       </div>
 
-      <div className="space-y-3">
-        <Label>Calorie Awareness</Label>
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('calorieAwarenessLabel', 'onboarding')}</Label>
         {selectBtn(
           [
-            { id: "none", label: "None" },
-            { id: "basic", label: "Basic" },
-            { id: "experienced", label: "Experienced" },
+            { id: "none", label: t('none', 'common') },
+            { id: "basic", label: t('basic', 'onboarding') },
+            { id: "experienced", label: t('experienced', 'onboarding') },
           ],
           data.calorieAwareness,
           (id) => onChange({ calorieAwareness: id })
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="favoriteFoods">Favorite Foods (Optional)</Label>
+      <div className="space-y-3">
+        <Label htmlFor="favoriteFoods" className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('favoriteFoods', 'onboarding')}</Label>
         <Input
           id="favoriteFoods"
-          placeholder="e.g. steak, pasta, sushi..."
+          placeholder={t('favoriteFoodsPlaceholder', 'onboarding')}
           value={data.favoriteFoods || ""}
           onChange={(e) => onChange({ favoriteFoods: e.target.value })}
-          className="bg-secondary border-border"
+          className="bg-secondary border-border h-11"
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="dislikedFoods">Disliked Foods (Optional)</Label>
+      <div className="space-y-3">
+        <Label htmlFor="dislikedFoods" className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('dislikedFoods', 'onboarding')}</Label>
         <Input
           id="dislikedFoods"
-          placeholder="e.g. mushrooms, olives, liver..."
+          placeholder={t('dislikedFoodsPlaceholder', 'onboarding')}
           value={data.dislikedFoods || ""}
           onChange={(e) => onChange({ dislikedFoods: e.target.value })}
-          className="bg-secondary border-border"
+          className="bg-secondary border-border h-11"
         />
       </div>
     </div>

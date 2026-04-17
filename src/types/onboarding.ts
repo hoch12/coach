@@ -7,6 +7,7 @@ export interface OnboardingData {
   height: string;
   weight: string;
   bodyFat: string;
+  bodyType: string;
   gender: string;
   fitnessLevel: string;
   healthLimitations: string;
@@ -54,6 +55,7 @@ export const defaultOnboardingData: OnboardingData = {
   height: "",
   weight: "",
   bodyFat: "",
+  bodyType: "",
   gender: "",
   fitnessLevel: "",
   healthLimitations: "",
@@ -116,17 +118,17 @@ export interface GeneratedPlan {
 }
 
 export const step0Schema = z.object({
-  age: z.coerce.number().min(10, "Age must be at least 10").max(120, "Age must be less than 120"),
-  height: z.coerce.number().min(80, "Height must be realistic (min 80cm)").max(250, "Height must be realistic (max 250cm)"),
-  weight: z.coerce.number().min(30, "Weight must be realistic (min 30kg)").max(300, "Weight must be realistic (max 300kg)"),
+  age: z.coerce.number().min(10, "errAgeMin").max(120, "errAgeMax"),
+  height: z.coerce.number().min(80, "errHeightMin").max(250, "errHeightMax"),
+  weight: z.coerce.number().min(30, "errWeightMin").max(300, "errWeightMax"),
   bodyFat: z.string().optional(),
-  gender: z.string().min(1, "Please select a gender"),
-  fitnessLevel: z.string().min(1, "Please select a fitness level"),
-  healthLimitations: z.string().max(300, "Please keep the description under 300 characters"),
+  gender: z.string().min(1, "errSelectGender"),
+  fitnessLevel: z.string().min(1, "errSelectFitnessLevel"),
+  healthLimitations: z.string().max(300, "errLongDescription"),
 });
 
 export const step1Schema = z.object({
-  fitnessGoals: z.array(z.string()).min(1, "Please select at least one goal"),
+  fitnessGoals: z.array(z.string()).min(1, "errSelectGoal"),
 });
 
 export const step2Schema = z.object({
@@ -137,29 +139,29 @@ export const step2Schema = z.object({
 export const step3Schema = z.object({
   disciplineLevel: z.number().min(1).max(10),
   motivationLevel: z.number().min(1).max(10),
-  sleepQuality: z.string().min(1, "Please select sleep quality"),
-  activityLevel: z.string().min(1, "Please select activity level"),
-  stressLevel: z.string().min(1, "Please select stress level"),
-  proactivity: z.string().min(1, "Please select proactivity"),
-  selfDevelopment: z.string().max(150, "Input is too long"),
-  perfectionism: z.string().max(150, "Input is too long"),
+  sleepQuality: z.string().min(1, "errSelectSleepQuality"),
+  activityLevel: z.string().min(1, "errSelectActivityLevel"),
+  stressLevel: z.string().min(1, "errSelectStressLevel"),
+  proactivity: z.string().min(1, "errSelectProactivity"),
+  selfDevelopment: z.string().max(150, "errInputTooLong"),
+  perfectionism: z.string().max(150, "errInputTooLong"),
   trainingFrequency: z.string().optional().default("3-4 days"),
   trainingDuration: z.string().optional().default("45-60"),
 });
 
 export const step4Schema = z.object({
-  dietaryPreference: z.string().min(1, "Please select dietary preference"),
-  allergies: z.string().max(150, "Please keep the description under 150 characters"),
-  budgetLimitation: z.string().min(1, "Please select budget limitation"),
-  eatingHabits: z.string().min(1, "Please select eating habits"),
-  mealFrequency: z.string().min(1, "Please select meal frequency"),
-  calorieAwareness: z.string().min(1, "Please select calorie awareness"),
-  favoriteFoods: z.string().max(150, "Please keep the description under 150 characters"),
-  dislikedFoods: z.string().max(150, "Please keep the description under 150 characters"),
+  dietaryPreference: z.string().min(1, "errSelectDietaryPref"),
+  allergies: z.string().max(150, "errLongDescription"),
+  budgetLimitation: z.string().min(1, "errSelectBudget"),
+  eatingHabits: z.string().min(1, "errSelectEatingHabits"),
+  mealFrequency: z.string().min(1, "errSelectMealFreq"),
+  calorieAwareness: z.string().min(1, "errSelectCalorieAwareness"),
+  favoriteFoods: z.string().max(150, "errLongDescription"),
+  dislikedFoods: z.string().max(150, "errLongDescription"),
 });
 
 export const step5Schema = z.object({
-  planStyle: z.string().min(1, "Please select a plan style"),
+  planStyle: z.string().min(1, "errSelectPlanStyle"),
 });
 
 export const validateStepData = (step: number, data: any) => {

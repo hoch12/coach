@@ -1,5 +1,6 @@
 import { GeneratedPlan } from "@/types/onboarding";
 import { Moon, Lightbulb, Flame, CheckCircle2, Shield, Heart, Calendar } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Props {
   plan: GeneratedPlan;
@@ -7,53 +8,54 @@ interface Props {
 
 export function LifestyleTab({ plan }: Props) {
   const { lifestyle } = plan;
+  const { t } = useLanguage();
 
   return (
     <div className="space-y-6">
       {/* Sleep */}
-      <SectionCard icon={Moon} title="Sleep Optimization">
+      <SectionCard icon={Moon} title={t('sleepOptimization', 'tabs')}>
         <p className="text-sm text-muted-foreground leading-relaxed">{lifestyle.sleepAdvice}</p>
       </SectionCard>
 
       {/* Motivation */}
-      <SectionCard icon={Flame} title="Motivation Strategy">
+      <SectionCard icon={Flame} title={t('motivationStrategy', 'tabs')}>
         <p className="text-sm text-muted-foreground leading-relaxed">{lifestyle.motivationStrategy}</p>
       </SectionCard>
 
       {/* Stress Management */}
       {lifestyle.stressManagement.length > 0 && (
-        <SectionCard icon={Shield} title="Stress Management">
+        <SectionCard icon={Shield} title={t('stressManagement', 'tabs')}>
           <BulletList items={lifestyle.stressManagement} />
         </SectionCard>
       )}
 
       {/* Daily Habits */}
-      <SectionCard icon={CheckCircle2} title="Daily Habits">
+      <SectionCard icon={CheckCircle2} title={t('dailyHabits', 'tabs')}>
         <NumberedList items={lifestyle.habits} />
       </SectionCard>
 
       {/* Discipline */}
-      <SectionCard icon={Lightbulb} title="Discipline Tips">
+      <SectionCard icon={Lightbulb} title={t('disciplineTips', 'tabs')}>
         <BulletList items={lifestyle.disciplineTips} />
       </SectionCard>
 
       {/* Recovery */}
       {lifestyle.recoveryProtocol.length > 0 && (
-        <SectionCard icon={Heart} title="Recovery Protocol">
+        <SectionCard icon={Heart} title={t('recoveryProtocol', 'tabs')}>
           <BulletList items={lifestyle.recoveryProtocol} />
         </SectionCard>
       )}
 
       {/* Weekly Checkpoints */}
       {lifestyle.weeklyCheckpoints.length > 0 && (
-        <SectionCard icon={Calendar} title="Weekly Checkpoints">
+        <SectionCard icon={Calendar} title={t('weeklyCheckpoints', 'tabs')}>
           <NumberedList items={lifestyle.weeklyCheckpoints} />
         </SectionCard>
       )}
 
       {/* Mindset */}
       <div className="glass-card rounded-xl p-6 border-primary/20">
-        <h3 className="font-display font-semibold mb-2 text-primary">Mindset Shift</h3>
+        <h3 className="font-display font-semibold mb-2 text-primary">{t('mindsetShift', 'tabs')}</h3>
         <p className="text-sm text-foreground leading-relaxed italic">"{lifestyle.mindsetShift}"</p>
       </div>
     </div>

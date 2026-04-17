@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, Users, Eye, LogOut, User } from "lucide-react";
+import { ArrowLeft, Trash2, Users, Eye, LogOut, User, MessageCircle, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { OnboardingData, GeneratedPlan } from "@/types/onboarding";
 import { toast } from "sonner";
 import { getApiUrl } from "@/lib/utils";
+
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface AdminUser {
     id: number;
@@ -22,22 +24,25 @@ interface AdminUser {
 interface SupportTicket {
     id: number;
     user_id: number;
-    username: string; // Joined from DB
+    username: string;
     message: string;
-    reply: string | null;
     status: "open" | "closed";
     created_at: string;
+    sender_id: number;
     replied_at: string | null;
 }
 
 const AdminPanel = () => {
     const { token, user, logout, updateUser } = useAuth();
+    const { language, setLanguage, t } = useLanguage();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState("users");
+    const [activeTab, setActiveTab] = useState("clients");
 
     // User Management State
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSendingChat, setIsSendingChat] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
     const [selectedProfile, setSelectedProfile] = useState<OnboardingData | null>(null);
@@ -49,16 +54,26 @@ const AdminPanel = () => {
     const [replyText, setReplyText] = useState("");
     const [replyingTo, setReplyingTo] = useState<number | null>(null);
 
+    const scrollToBottom = () => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [tickets, replyingTo]);
+
     const [trainers, setTrainers] = useState<AdminUser[]>([]);
     const [selectedTrainerId, setSelectedTrainerId] = useState<string>("");
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [passwordForm, setPasswordForm] = useState({ old: "", new: "", confirm: "" });
 
     useEffect(() => {
-        if (activeTab === "users") {
+        if (activeTab === "clients" || activeTab === "trainers") {
             fetchUsers();
             fetchTrainers();
-        } else if (activeTab === "support") {
+        } else if (activeTab === "messages") {
             fetchTickets();
         }
     }, [token, activeTab]);
@@ -121,15 +136,15 @@ const AdminPanel = () => {
             });
 
             if (res.ok) {
-                toast.success("Reply sent successfully");
+                toast.success(t('msgSentSuccess', 'admin') || "Reply sent successfully");
                 setReplyText("");
-                setReplyingTo(null);
+                // Removed setReplyingTo(null) to keep chat persistent
                 fetchTickets();
             } else {
-                toast.error("Failed to send reply");
+                toast.error(t('msgSentError', 'admin') || "Failed to send reply");
             }
         } catch (e) {
-            toast.error("Network error");
+            toast.error(t('networkError', 'common') || "Network error");
         }
     };
 
@@ -247,31 +262,31 @@ const AdminPanel = () => {
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => { logout(); navigate("/login"); }} className="text-destructive hover:bg-destructive/10 px-2 transition-colors">
                             <LogOut className="h-4 w-4 sm:mr-2" />
-                            <span className="hidden sm:inline">Logout</span>
+                            <span className="hidden sm:inline">{t('logout', 'common')}</span>
                         </Button>
                     </div>
                 </header>
 
                 <div className="flex space-x-2 border-b border-border/50 pb-2">
                     <button
-                        onClick={() => setActiveTab("users")}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === "users" ? "bg-accent/20 text-accent" : "text-muted-foreground hover:bg-secondary"}`}
+                        onClick={() => setActiveTab("clients")}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === "clients" ? "bg-accent/20 text-accent" : "text-muted-foreground hover:bg-secondary"}`}
                     >
-                        Users
+                        {t('manageClients', 'admin') || "Manage Clients"}
                     </button>
                     <button
                         onClick={() => setActiveTab("trainers")}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === "trainers" ? "bg-accent/20 text-accent" : "text-muted-foreground hover:bg-secondary"}`}
                     >
-                        Manage Trainers
+                        {t('manageTrainers', 'admin') || "Manage Trainers"}
                     </button>
                     <button
-                        onClick={() => setActiveTab("support")}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === "support" ? "bg-accent/20 text-accent" : "text-muted-foreground hover:bg-secondary"}`}
+                        onClick={() => setActiveTab("messages")}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === "messages" ? "bg-accent/20 text-accent" : "text-muted-foreground hover:bg-secondary"}`}
                     >
-                        Support Inbox
+                        {t('messaging', 'admin') || "Messaging"}
                         {tickets.filter(t => t.status === 'open').length > 0 && (
-                            <span className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full">
+                            <span className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
                                 {tickets.filter(t => t.status === 'open').length}
                             </span>
                         )}
@@ -280,18 +295,17 @@ const AdminPanel = () => {
 
                 {activeTab === "trainers" && (
                     <div className="space-y-6">
-                        <Card className="bg-card/50 border-accent/30 backdrop-blur-sm">
+                        <Card className="bg-card/50 border-border/50 backdrop-blur-sm border-t-2 border-t-accent/50">
                             <CardHeader>
-                                <CardTitle>Create New Trainer</CardTitle>
-                                <CardDescription>Register a new fitness professional to the platform</CardDescription>
+                                <CardTitle className="text-xl font-display font-bold">{t('onboardNewTrainer', 'admin') || "Onboard New Trainer"}</CardTitle>
+                                <CardDescription>{t('onboardTrainerDesc', 'admin') || "Grant professional access to a new team member"}</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <form onSubmit={async (e) => {
                                     e.preventDefault();
-                                    const form = e.target as HTMLFormElement;
-                                    const username = (form.elements.namedItem("trainer_username") as HTMLInputElement).value;
-                                    const password = (form.elements.namedItem("trainer_password") as HTMLInputElement).value;
-
+                                    const form = e.currentTarget;
+                                    const username = (form.elements.namedItem('trainer_username') as HTMLInputElement).value;
+                                    const password = (form.elements.namedItem('trainer_password') as HTMLInputElement).value;
                                     try {
                                         const res = await fetch(getApiUrl("/api/admin/create-trainer"), {
                                             method: "POST",
@@ -302,57 +316,61 @@ const AdminPanel = () => {
                                             body: JSON.stringify({ username, password })
                                         });
                                         if (res.ok) {
-                                            toast.success("Trainer created successfully");
+                                            toast.success(t('trainerCreated', 'admin') || "Trainer profile created successfully");
                                             form.reset();
                                             fetchTrainers();
                                         } else {
                                             const data = await res.json();
-                                            toast.error(data.error || "Failed to create trainer");
+                                            toast.error(data.error || t('failedToCreateTrainer', 'admin') || "Failed to create trainer");
                                         }
                                     } catch (e) {
-                                        toast.error("Network error");
+                                        toast.error(t('networkError', 'common') || "Network error");
                                     }
-                                }} className="flex gap-4 items-end">
-                                    <div className="flex-1 space-y-2">
-                                        <Label htmlFor="trainer_username">Username</Label>
-                                        <Input id="trainer_username" name="trainer_username" required />
+                                }} className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="trainer_username" className="text-[10px] uppercase font-bold tracking-wider opacity-60">{t('username', 'onboarding')}</Label>
+                                        <Input id="trainer_username" name="trainer_username" required className="bg-background/30 rounded-xl" />
                                     </div>
-                                    <div className="flex-1 space-y-2">
-                                        <Label htmlFor="trainer_password">Password</Label>
-                                        <Input id="trainer_password" name="trainer_password" type="password" required />
+                                    <div className="space-y-2">
+                                        <Label htmlFor="trainer_password" className="text-[10px] uppercase font-bold tracking-wider opacity-60">{t('password', 'onboarding')}</Label>
+                                        <Input id="trainer_password" name="trainer_password" type="password" required className="bg-background/30 rounded-xl" />
                                     </div>
-                                    <Button type="submit">Create Trainer</Button>
+                                    <Button type="submit" variant="hero" className="rounded-xl shadow-lg shadow-accent/10">{t('authorizeTrainer', 'admin') || "Authorize Trainer"}</Button>
                                 </form>
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-card/50 border-accent/30 backdrop-blur-sm">
+                        <Card className="bg-card/50 border-border/50 backdrop-blur-sm">
                             <CardHeader>
-                                <CardTitle>Existing Trainers</CardTitle>
+                                <CardTitle className="text-xl font-display font-bold">{t('theTeam', 'admin') || "The Team"}</CardTitle>
+                                <CardDescription>{t('managingTrainers', 'admin') || "Managing"} {trainers.length} {t('activeProfessionalTrainers', 'admin') || "active professional trainers"}</CardDescription>
                             </CardHeader>
                             <CardContent className="p-0 sm:p-6">
                                 {/* Desktop View */}
-                                <div className="hidden md:block rounded-md border border-border/50 overflow-x-auto">
+                                <div className="hidden md:block rounded-xl border border-border/50 overflow-hidden bg-background/30 shadow-inner">
                                     <table className="w-full text-sm text-left">
-                                        <thead className="bg-secondary/50 text-muted-foreground text-xs uppercase px-4 py-3 border-b border-border/50">
+                                        <thead className="bg-secondary/80 text-muted-foreground text-[10px] uppercase tracking-widest px-6 py-4 border-b border-border/50">
                                             <tr>
-                                                <th className="px-4 py-3 font-medium">Username</th>
-                                                <th className="px-4 py-3 text-right">Actions</th>
+                                                <th className="px-6 py-4 font-bold">{t('trainer', 'admin') || "Trainer"}</th>
+                                                <th className="px-6 py-4 font-bold text-right">{t('actions', 'admin') || "Actions"}</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/50">
-                                            {trainers.map(t => (
-                                                <tr key={t.id} className="hover:bg-secondary/30 transition-colors">
-                                                    <td className="px-4 py-3 font-medium">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center overflow-hidden border border-border/50">
-                                                                {t.profile_image ? <img src={t.profile_image} className="h-full w-full object-cover" /> : <span className="text-xs font-bold text-muted-foreground">{t.username[0].toUpperCase()}</span>}
+                                            {trainers.map(t_item => (
+                                                <tr key={t_item.id} className="hover:bg-accent/5 transition-colors group">
+                                                    <td className="px-6 py-4 font-medium">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center overflow-hidden border border-border/50 shadow-sm group-hover:rotate-3 transition-transform">
+                                                                {t_item.profile_image ? <img src={t_item.profile_image} className="h-full w-full object-cover" /> : <span className="text-sm font-bold text-muted-foreground">{t_item.username[0].toUpperCase()}</span>}
                                                             </div>
-                                                            {t.username}
+                                                            <div>
+                                                                <p className="font-bold text-foreground">{t_item.username}</p>
+                                                                <p className="text-[10px] text-muted-foreground opacity-70">{t('professionalCoach', 'admin') || "Professional Coach"}</p>
+                                                            </div>
                                                         </div>
                                                     </td>
-                                                    <td className="px-4 py-3 text-right">
-                                                        <Button variant="ghost" size="sm" onClick={() => deleteUser(t.id)} className="text-destructive transition-colors">
+                                                    <td className="px-6 py-4 text-right">
+                                                        <Button variant="ghost" size="sm" onClick={() => deleteUser(t_item.id)} className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all rounded-lg">
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
                                                     </td>
@@ -363,100 +381,95 @@ const AdminPanel = () => {
                                 </div>
                                 {/* Mobile View */}
                                 <div className="md:hidden space-y-4 px-4 pb-4">
-                                    {trainers.map(t => (
-                                        <div key={t.id} className="p-4 rounded-xl bg-secondary/20 border border-border/50 space-y-3">
+                                    {trainers.map(t_item => (
+                                        <div key={t_item.id} className="p-4 rounded-2xl bg-secondary/20 border border-border/50 flex items-center justify-between shadow-sm">
                                             <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden border border-border/50 shadow-sm">
-                                                    {t.profile_image ? <img src={t.profile_image} className="h-full w-full object-cover" /> : <span className="font-bold">{t.username[0].toUpperCase()}</span>}
+                                                <div className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center overflow-hidden border border-border/50 shadow-inner">
+                                                    {t_item.profile_image ? <img src={t_item.profile_image} className="h-full w-full object-cover" /> : <span className="text-lg font-bold">{t_item.username[0].toUpperCase()}</span>}
                                                 </div>
                                                 <div>
-                                                    <p className="font-bold">{t.username}</p>
-                                                    <p className="text-xs text-muted-foreground">ID: {t.id}</p>
+                                                    <p className="font-bold">{t_item.username}</p>
+                                                    <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest opacity-50">#T-{t_item.id}</p>
                                                 </div>
                                             </div>
-                                            <div className="pt-2 border-t border-border/50 text-right">
-                                                <Button variant="ghost" size="sm" onClick={() => deleteUser(t.id)} className="text-destructive font-bold text-xs uppercase">Delete</Button>
-                                            </div>
+                                            <Button variant="ghost" size="sm" onClick={() => deleteUser(t_item.id)} className="text-destructive h-10 w-10 p-0 rounded-xl bg-destructive/5">
+                                                <Trash2 className="h-5 w-5" />
+                                            </Button>
                                         </div>
                                     ))}
+                                    {trainers.length === 0 && <p className="text-center py-12 text-muted-foreground italic text-sm">{t('noTrainersFound', 'admin') || "No trainers found"}</p>}
                                 </div>
                             </CardContent>
                         </Card>
                     </div>
                 )}
 
-                {activeTab === "users" && (
-                    <Card className="bg-card/50 border-accent/30 backdrop-blur-sm">
+                {activeTab === "clients" && (
+                    <Card className="bg-card/50 border-border/50 backdrop-blur-sm border-t-2 border-t-primary/50">
                         <CardHeader>
-                            <CardTitle>User Management</CardTitle>
-                            <CardDescription>View and manage all registered accounts on the platform</CardDescription>
+                            <CardTitle className="text-2xl font-display font-bold">{t('manageClients', 'admin') || "Manage Clients"}</CardTitle>
+                            <CardDescription>{t('manageClientsDesc', 'admin') || "View and manage all active users on the platform"}</CardDescription>
                         </CardHeader>
                         <CardContent className="p-0 sm:p-6">
                             {/* Desktop View */}
-                            <div className="hidden md:block rounded-md border border-border/50 overflow-x-auto">
+                            <div className="hidden md:block rounded-xl border border-border/50 overflow-hidden bg-background/30 shadow-inner">
                                 <table className="w-full text-sm text-left">
-                                    <thead className="bg-secondary/50 text-muted-foreground text-xs uppercase px-4 py-3 border-b border-border/50">
+                                    <thead className="bg-secondary/80 text-muted-foreground text-[10px] uppercase tracking-widest px-6 py-4 border-b border-border/50">
                                         <tr>
-                                            <th className="px-4 py-3 font-medium">ID</th>
-                                            <th className="px-4 py-3 font-medium">Username</th>
-                                            <th className="px-4 py-3 font-medium">Role</th>
-                                            <th className="px-4 py-3 font-medium text-right">Actions</th>
+                                            <th className="px-6 py-4 font-bold">{t('clientHeader', 'admin') || "Client"}</th>
+                                            <th className="px-6 py-4 font-bold">{t('trainerAssignmentHeader', 'admin') || "Trainer Assignment"}</th>
+                                            <th className="px-6 py-4 font-bold text-right">{t('actionsHeader', 'admin') || "Actions"}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border/50">
-                                        {users.map((u) => (
-                                            <tr key={u.id} className="hover:bg-secondary/30 transition-colors">
-                                                <td className="px-4 py-3 font-medium">{u.id}</td>
-                                                <td className="px-4 py-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center overflow-hidden border border-border/50">
+                                        {users.filter(u => u.role === 'user').map((u) => (
+                                            <tr key={u.id} className="hover:bg-primary/5 transition-colors group">
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center overflow-hidden border border-border/50 shadow-sm group-hover:scale-105 transition-transform">
                                                             {u.profile_image ? (
                                                                 <img src={u.profile_image} alt="U" className="h-full w-full object-cover" />
                                                             ) : (
-                                                                <span className="text-xs font-bold text-muted-foreground">{u.username[0].toUpperCase()}</span>
+                                                                <span className="text-sm font-bold text-muted-foreground">{u.username[0].toUpperCase()}</span>
                                                             )}
                                                         </div>
-                                                        {u.username}
+                                                        <div>
+                                                            <p className="font-bold text-foreground">{u.username}</p>
+                                                            <p className="text-[10px] text-muted-foreground font-mono">ID: #{u.id}</p>
+                                                        </div>
                                                     </div>
                                                 </td>
-                                                <td className="px-4 py-3">
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.role === 'admin' ? 'bg-accent/20 text-accent' : u.role === 'trainer' ? 'bg-purple-500/20 text-purple-500' : 'bg-primary/20 text-primary'}`}>
-                                                        {u.role}
-                                                    </span>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex gap-2 items-center">
+                                                        <select
+                                                            className={`text-xs bg-secondary/50 border rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-primary transition-all ${u.trainer_id ? 'border-primary/30 text-primary font-bold' : 'border-border/50 text-muted-foreground italic'}`}
+                                                            defaultValue={u.trainer_id || ""}
+                                                            id={`trainer-select-${u.id}`}
+                                                        >
+                                                            <option value="">{t('noTrainerAssigned', 'admin') || "No Trainer Assigned"}</option>
+                                                            {trainers.map(t_item => <option key={t_item.id} value={t_item.id}>{t_item.username}</option>)}
+                                                        </select>
+                                                        <Button
+                                                            size="sm"
+                                                            variant={u.trainer_id ? "outline" : "hero"}
+                                                            className="h-8 px-3 text-[10px] uppercase font-bold"
+                                                            onClick={() => {
+                                                                const sel = document.getElementById(`trainer-select-${u.id}`) as HTMLSelectElement;
+                                                                assignTrainer(u.id, parseInt(sel.value));
+                                                            }}
+                                                        >
+                                                            {u.trainer_id ? t('change', 'common') || "Change" : t('assign', 'admin') || "Assign"}
+                                                        </Button>
+                                                    </div>
                                                 </td>
-                                                <td className="px-4 py-3 text-right">
-                                                    <div className="flex justify-end gap-2 items-center">
-                                                        {u.role === 'user' && (
-                                                            <div className="flex gap-1 items-center mr-4">
-                                                                <select
-                                                                    className={`text-xs bg-background border rounded px-2 py-1 ${u.trainer_id ? 'border-primary/50 text-primary font-medium' : 'border-border'}`}
-                                                                    defaultValue={u.trainer_id || ""}
-                                                                    id={`trainer-select-${u.id}`}
-                                                                >
-                                                                    <option value="">No Trainer</option>
-                                                                    {trainers.map(t => <option key={t.id} value={t.id}>{t.username}</option>)}
-                                                                </select>
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant={u.trainer_id ? "outline" : "default"}
-                                                                    className="h-7 px-2"
-                                                                    onClick={() => {
-                                                                        const sel = document.getElementById(`trainer-select-${u.id}`) as HTMLSelectElement;
-                                                                        assignTrainer(u.id, parseInt(sel.value));
-                                                                    }}
-                                                                >
-                                                                    {u.trainer_id ? "Update" : "Assign"}
-                                                                </Button>
-                                                            </div>
-                                                        )}
-                                                        <Button variant="ghost" size="sm" onClick={() => viewUserDetails(u)} className="text-muted-foreground hover:bg-secondary transition-colors">
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-1 items-center">
+                                                        <Button variant="ghost" size="sm" onClick={() => viewUserDetails(u)} className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all rounded-lg">
                                                             <Eye className="h-4 w-4" />
                                                         </Button>
-                                                        {u.id !== user?.id && (
-                                                            <Button variant="ghost" size="sm" onClick={() => deleteUser(u.id)} className="text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors">
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
+                                                        <Button variant="ghost" size="sm" onClick={() => deleteUser(u.id)} className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all rounded-lg">
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -466,125 +479,185 @@ const AdminPanel = () => {
                             </div>
                             {/* Mobile View */}
                             <div className="md:hidden space-y-4 px-4 pb-4">
-                                {users.map(u => (
-                                    <div key={u.id} className="p-4 rounded-xl bg-secondary/20 border border-border/50 space-y-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center overflow-hidden border border-border/50 shadow-sm">
-                                                {u.profile_image ? <img src={u.profile_image} className="h-full w-full object-cover" /> : <span className="font-bold">{u.username[0].toUpperCase()}</span>}
+                                {users.filter(u => u.role === 'user').map(u => (
+                                    <div key={u.id} className="p-4 rounded-2xl bg-secondary/20 border border-border/50 space-y-4 shadow-sm backdrop-blur-sm">
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-12 w-12 rounded-2xl bg-secondary flex items-center justify-center overflow-hidden border border-border/50 shadow-inner">
+                                                {u.profile_image ? <img src={u.profile_image} className="h-full w-full object-cover" /> : <span className="text-lg font-bold">{u.username[0].toUpperCase()}</span>}
                                             </div>
-                                            <div>
-                                                <p className="font-bold">{u.username}</p>
-                                                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">{u.role}</p>
+                                            <div className="flex-1">
+                                                <div className="flex justify-between items-start">
+                                                    <p className="font-bold text-foreground">{u.username}</p>
+                                                    <span className="text-[10px] text-muted-foreground font-mono">#{u.id}</span>
+                                                </div>
+                                                <div className="flex gap-1 mt-1">
+                                                    <span className="bg-primary/10 text-primary text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full">{t('client', 'admin') || "Client"}</span>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {u.role === 'user' && (
-                                            <div className="flex flex-col gap-2 pt-2 border-t border-border/20">
-                                                <p className="text-[10px] uppercase font-bold text-muted-foreground">Assign Trainer</p>
-                                                <div className="flex gap-2">
-                                                    <select
-                                                        className={`flex-1 text-xs bg-background border rounded px-2 py-1 ${u.trainer_id ? 'border-primary/50 text-primary' : 'border-border'}`}
-                                                        defaultValue={u.trainer_id || ""}
-                                                        id={`trainer-select-mob-${u.id}`}
-                                                    >
-                                                        <option value="">No Trainer</option>
-                                                        {trainers.map(t => <option key={t.id} value={t.id}>{t.username}</option>)}
-                                                    </select>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        className="h-8 px-3 text-xs"
-                                                        onClick={() => {
-                                                            const sel = document.getElementById(`trainer-select-mob-${u.id}`) as HTMLSelectElement;
-                                                            assignTrainer(u.id, parseInt(sel.value));
-                                                        }}
-                                                    >
-                                                        Set
-                                                    </Button>
-                                                </div>
+                                        <div className="bg-background/40 p-3 rounded-xl border border-border/20 space-y-2">
+                                            <Label className="text-[9px] uppercase font-bold text-muted-foreground tracking-widest">{t('assignProfessionalTrainer', 'admin') || "Assign Professional Trainer"}</Label>
+                                            <div className="flex gap-2">
+                                                <select
+                                                    className={`flex-1 text-xs bg-secondary/50 border rounded-lg px-2 py-1.5 outline-none ${u.trainer_id ? 'border-primary/30 text-primary font-bold' : 'border-border/50'}`}
+                                                    defaultValue={u.trainer_id || ""}
+                                                    id={`trainer-select-mob-${u.id}`}
+                                                >
+                                                    <option value="">{t('none', 'common') || "None"}</option>
+                                                    {trainers.map(t_item => <option key={t_item.id} value={t_item.id}>{t_item.username}</option>)}
+                                                </select>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="h-8 px-3 text-[10px] font-black uppercase tracking-tighter"
+                                                    onClick={() => {
+                                                        const sel = document.getElementById(`trainer-select-mob-${u.id}`) as HTMLSelectElement;
+                                                        assignTrainer(u.id, parseInt(sel.value));
+                                                    }}
+                                                >
+                                                    {t('set', 'admin') || "Set"}
+                                                </Button>
                                             </div>
-                                        )}
+                                        </div>
 
-                                        <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                                            <span className="text-[10px] text-muted-foreground font-mono">ID: {u.id}</span>
-                                            <div className="flex gap-1">
-                                                <Button size="sm" variant="ghost" onClick={() => viewUserDetails(u)} className="h-8 text-accent font-bold text-xs uppercase">Details</Button>
-                                                {u.id !== user?.id && (
-                                                    <Button size="sm" variant="ghost" className="h-8 text-destructive font-bold text-xs uppercase" onClick={() => deleteUser(u.id)}>Delete</Button>
-                                                )}
-                                            </div>
+                                        <div className="flex gap-2 pt-2 border-t border-border/20">
+                                            <Button variant="secondary" className="flex-1 h-9 text-[10px] font-bold uppercase" onClick={() => viewUserDetails(u)}>{t('openDetails', 'admin') || "Open Details"}</Button>
+                                            <Button variant="ghost" className="h-9 w-9 p-0 text-destructive/50 hover:text-destructive hover:bg-destructive/10" onClick={() => deleteUser(u.id)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
                                         </div>
                                     </div>
                                 ))}
-                                {users.length === 0 && <p className="text-center py-8 text-muted-foreground">No users found</p>}
+                                {users.filter(u => u.role === 'user').length === 0 && (
+                                    <div className="text-center py-12 space-y-3 grayscale opacity-50">
+                                        <Users className="h-10 w-10 mx-auto" />
+                                        <p className="text-sm font-medium">{t('noClientsFound', 'admin') || "No active clients found in the system"}</p>
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
                 )}
 
-                {activeTab === "support" && (
-                    <Card className="bg-card/50 border-accent/30 backdrop-blur-sm">
-                        <CardHeader>
-                            <CardTitle>Support Inbox</CardTitle>
-                            <CardDescription>Respond to user questions and support requests.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {tickets.length === 0 ? (
-                                <p className="text-center text-muted-foreground py-8">No support tickets found.</p>
-                            ) : (
-                                tickets.map(ticket => (
-                                    <div key={ticket.id} className="border border-border/50 rounded-lg p-4 space-y-3 bg-secondary/10">
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="font-semibold">{ticket.username}</span>
-                                                    <span className="text-xs text-muted-foreground">{new Date(ticket.created_at).toLocaleString()}</span>
-                                                    {ticket.status === 'open' ? (
-                                                        <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded-full">Open</span>
-                                                    ) : (
-                                                        <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">Closed</span>
-                                                    )}
-                                                </div>
-                                                <p className="text-sm">{ticket.message}</p>
-                                            </div>
-                                        </div>
-
-                                        {ticket.status === 'closed' ? (
-                                            <div className="bg-muted/30 p-3 rounded-md border border-border/30 mt-3">
-                                                <div className="flex justify-between mb-1">
-                                                    <span className="text-xs font-semibold text-accent">Your Reply</span>
-                                                    <span className="text-xs text-muted-foreground">{ticket.replied_at ? new Date(ticket.replied_at).toLocaleString() : ''}</span>
-                                                </div>
-                                                <p className="text-sm text-foreground/80">{ticket.reply}</p>
-                                            </div>
-                                        ) : (
-                                            <div className="mt-4">
-                                                {replyingTo === ticket.id ? (
-                                                    <div className="space-y-2">
-                                                        <textarea
-                                                            className="w-full h-24 p-2 text-sm bg-background border border-border/50 rounded-md focus:outline-none focus:ring-1 focus:ring-accent"
-                                                            placeholder="Write your response..."
-                                                            value={replyText}
-                                                            onChange={(e) => setReplyText(e.target.value)}
-                                                        />
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button variant="ghost" size="sm" onClick={() => { setReplyingTo(null); setReplyText(''); }}>Cancel</Button>
-                                                            <Button size="sm" onClick={() => handleReply(ticket.id)}>Send Reply</Button>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <Button variant="outline" size="sm" onClick={() => setReplyingTo(ticket.id)}>
-                                                        Reply to User
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        )}
+                {activeTab === "messages" && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[70vh]">
+                        {/* Conversations List */}
+                        <Card className="md:col-span-1 bg-card/50 border-border/50 backdrop-blur-sm flex flex-col overflow-hidden">
+                            <CardHeader className="py-4 border-b border-border/30">
+                                <CardTitle className="text-lg font-display font-bold">Inbox</CardTitle>
+                                <CardDescription className="text-[10px]">Recent communications</CardDescription>
+                            </CardHeader>
+                            <div className="flex-1 overflow-y-auto no-scrollbar">
+                                {tickets.length === 0 ? (
+                                    <div className="p-8 text-center text-muted-foreground grayscale opacity-40">
+                                        <MessageCircle className="h-8 w-8 mx-auto mb-2" />
+                                        <p className="text-[10px] font-bold uppercase tracking-widest">No messages</p>
                                     </div>
-                                ))
+                                ) : tickets.length > 0 ? (
+                                    [...new Set(tickets.map(t => t.user_id))]
+                                        .sort((a, b) => {
+                                            const timesA = tickets.filter(t => t.user_id === a).map(t => new Date(t.created_at).getTime());
+                                            const timesB = tickets.filter(t => t.user_id === b).map(t => new Date(t.created_at).getTime());
+                                            const latestA = timesA.length > 0 ? Math.max(...timesA) : 0;
+                                            const latestB = timesB.length > 0 ? Math.max(...timesB) : 0;
+                                            return latestB - latestA;
+                                        })
+                                        .map(uid => {
+                                            const userTickets = tickets.filter(t => t.user_id === uid);
+                                            const lastMsg = userTickets[userTickets.length - 1];
+                                            const unread = userTickets.filter(t => t.status === 'open' && t.sender_id !== Number(user?.id)).length;
+                                            return (
+                                                <button
+                                                    key={uid}
+                                                    onClick={() => setReplyingTo(lastMsg?.id || null)}
+                                                    className={`w-full p-4 flex items-center gap-3 border-b border-border/10 hover:bg-primary/5 transition-colors text-left group ${replyingTo && tickets.find(t => t.id === replyingTo)?.user_id === uid ? 'bg-primary/10 border-r-2 border-r-primary' : ''}`}
+                                                >
+                                                    <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center font-bold text-xs shadow-inner">
+                                                        {lastMsg?.username[0].toUpperCase()}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex justify-between items-center mb-0.5">
+                                                            <span className="font-bold text-sm truncate">{lastMsg?.username}</span>
+                                                            {unread > 0 && <span className="bg-primary text-primary-foreground text-[8px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-primary/20">{unread}</span>}
+                                                        </div>
+                                                        <p className="text-[10px] text-muted-foreground truncate opacity-70 italic">"{lastMsg?.message}"</p>
+                                                    </div>
+                                                </button>
+                                            );
+                                        })
+                                ) : null}
+                            </div>
+                        </Card>
+
+                        {/* Chat Window */}
+                        <Card className="md:col-span-2 bg-card/50 border-border/50 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden">
+                            {replyingTo ? (
+                                <>
+                                    <div className="p-4 border-b border-border/30 bg-primary/5 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center font-bold text-[10px] text-primary">
+                                                {tickets.find(t => t.id === replyingTo)?.username[0].toUpperCase()}
+                                            </div>
+                                            <span className="font-bold text-sm tracking-tight">{tickets.find(t => t.id === replyingTo)?.username}</span>
+                                        </div>
+                                        <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest opacity-50">{t('supportChannel', 'admin') || "Support Channel"}</span>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-dots-pattern" ref={scrollRef}>
+                                        {/* Unified Message Stream */}
+                                        {tickets
+                                            .filter(t => t.user_id === tickets.find(msg => msg.id === replyingTo)?.user_id)
+                                            .map(ticket => {
+                                                const isPritomnyAdmin = ticket.sender_id === Number(user?.id);
+                                                return (
+                                                    <div key={ticket.id} className={`flex flex-col ${isPritomnyAdmin ? 'items-end' : 'items-start'} w-full animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                                                        <div className={`p-3 rounded-2xl ${isPritomnyAdmin ? 'bg-primary text-primary-foreground rounded-tr-none shadow-lg shadow-primary/20 max-w-[85%] border border-primary-foreground/10' : 'bg-secondary/80 backdrop-blur-md rounded-tl-none border border-border/50 shadow-sm max-w-[85%]'} relative overflow-hidden`}>
+                                                            <div className={`absolute top-0 ${isPritomnyAdmin ? 'right-0 w-1' : 'left-0 w-1'} h-full ${isPritomnyAdmin ? 'bg-white/20' : 'bg-muted-foreground/30'}`} />
+                                                            <p className="text-xs leading-relaxed px-1">{ticket.message}</p>
+                                                        </div>
+                                                        <span className={`text-[9px] text-muted-foreground/50 mt-1 font-mono ${isPritomnyAdmin ? 'mr-1' : 'ml-1'}`}>
+                                                            {isPritomnyAdmin ? (t('systemResponse', 'admin') || "System Response") : ticket.username} • {new Date(ticket.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                    {/* Input Area */}
+                                    <div className="p-4 bg-background/50 border-t border-border/50">
+                                        <div className="flex gap-2 relative group">
+                                            <Input
+                                                className="flex-1 bg-secondary/30 border-border/50 rounded-xl focus-visible:ring-primary h-12 text-sm pr-12 shadow-inner"
+                                                placeholder={t('typeMessage', 'messenger') || "Type your response..."}
+                                                value={replyText}
+                                                onChange={(e) => setReplyText(e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && handleReply(replyingTo)}
+                                            />
+                                            <Button 
+                                                onClick={() => handleReply(replyingTo)}
+                                                className="absolute right-1 top-1 h-10 w-10 p-0 rounded-lg hover:rotate-12 transition-all active:scale-95"
+                                                disabled={!replyText.trim()}
+                                            >
+                                                <ArrowLeft className="rotate-180 h-5 w-5" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-4 opacity-50">
+                                    <div className="h-20 w-20 rounded-3xl bg-secondary flex items-center justify-center grayscale border-4 border-dashed border-border/50">
+                                        <MessageCircle className="h-8 w-8 text-muted-foreground" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="font-display font-bold text-lg">{t('commHub', 'admin') || "Communication Hub"}</p>
+                                        <p className="text-xs text-muted-foreground max-w-xs">{t('commHubDesc', 'admin') || "Select a conversation from the sidebar to view thread history and respond to inquiries."}</p>
+                                    </div>
+                                </div>
                             )}
-                        </CardContent>
-                    </Card>
+                        </Card>
+                    </div>
                 )}
+
+
 
                 <Dialog open={!!selectedUser} onOpenChange={(open: boolean) => !open && setSelectedUser(null)}>
                     <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
@@ -633,14 +706,14 @@ const AdminPanel = () => {
                                     {selectedPlan && (
                                         <div className="space-y-4 pt-4">
                                             <h3 className="font-semibold text-lg border-b pb-2">Training Plan</h3>
-                                            <p className="text-sm"><span className="text-muted-foreground">Weekly Days:</span> {selectedPlan.trainingSplit.length}</p>
+                                            <p className="text-sm"><span className="text-muted-foreground">Weekly Days:</span> {selectedPlan?.trainingSplit?.length || 0}</p>
 
                                             <h3 className="font-semibold text-lg border-b pb-2 mt-4">Nutrition Plan</h3>
                                             <div className="grid grid-cols-2 gap-4 text-sm">
-                                                <div><span className="text-muted-foreground">Calories:</span> {selectedPlan.nutrition.calories} kcal</div>
-                                                <div><span className="text-muted-foreground">Protein:</span> {selectedPlan.nutrition.protein}g</div>
-                                                <div><span className="text-muted-foreground">Carbs:</span> {selectedPlan.nutrition.carbs}g</div>
-                                                <div><span className="text-muted-foreground">Fat:</span> {selectedPlan.nutrition.fat}g</div>
+                                                <div><span className="text-muted-foreground">Calories:</span> {selectedPlan?.nutrition?.calories || "-"} kcal</div>
+                                                <div><span className="text-muted-foreground">Protein:</span> {selectedPlan?.nutrition?.protein || "-"}g</div>
+                                                <div><span className="text-muted-foreground">Carbs:</span> {selectedPlan?.nutrition?.carbs || "-"}g</div>
+                                                <div><span className="text-muted-foreground">Fat:</span> {selectedPlan?.nutrition?.fat || "-"}g</div>
                                             </div>
                                         </div>
                                     )}
@@ -667,90 +740,13 @@ const AdminPanel = () => {
                                             <span className="text-3xl font-bold text-primary">{user?.username?.[0]?.toUpperCase()}</span>
                                         )}
                                     </div>
-                                    <div className="flex flex-col items-center gap-2">
-                                        <Input
-                                            type="file"
-                                            accept="image/*"
-                                            id="admin-avatar-upload"
-                                            className="hidden"
-                                            onChange={async (e) => {
-                                                const file = e.target.files?.[0];
-                                                if (!file) return;
-                                                if (file.size > 10 * 1024 * 1024) {
-                                                    toast.error("Obrázek je příliš velký (max 10MB)");
-                                                    return;
-                                                }
-                                                const reader = new FileReader();
-                                                reader.onloadend = async () => {
-                                                    const base64 = reader.result as string;
-                                                    try {
-                                                        const res = await fetch(getApiUrl("/api/user/settings"), {
-                                                            method: "PUT",
-                                                            headers: {
-                                                                "Content-Type": "application/json",
-                                                                "Authorization": `Bearer ${token}`
-                                                            },
-                                                            body: JSON.stringify({ profile_image: base64 })
-                                                        });
-                                                        if (res.ok) {
-                                                            const data = await res.json();
-                                                            console.log("[Admin] Avatar updated successfully:", data.user);
-                                                            updateUser(data.user);
-                                                            toast.success("Administrátorská fotka byla úspěšně změněna!");
-                                                        } else {
-                                                            const errData = await res.json().catch(() => ({}));
-                                                            console.error("[Admin] Avatar update failed:", res.status, errData);
-                                                            toast.error(`Chyba při nahrávání: ${errData.error || res.statusText}`);
-                                                        }
-                                                    } catch (e) {
-                                                        toast.error("Chyba při nahrávání");
-                                                    }
-                                                };
-                                                reader.readAsDataURL(file);
-                                            }}
-                                        />
-                                        <Label htmlFor="admin-avatar-upload" className="cursor-pointer">
-                                            <Button variant="outline" size="sm" asChild>
-                                                <span>Změnit fotku</span>
-                                            </Button>
-                                        </Label>
-                                    </div>
                                 </div>
 
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <Label>Uživatelské jméno</Label>
-                                        <div className="flex gap-2">
-                                            <Input
-                                                id="admin_username_edit_field"
-                                                defaultValue={user?.username}
-                                            />
-                                            <Button size="sm" onClick={async () => {
-                                                const val = (document.getElementById("admin_username_edit_field") as HTMLInputElement).value;
-                                                if (!val || val === user?.username) return;
-                                                try {
-                                                    const res = await fetch(getApiUrl("/api/user/settings"), {
-                                                        method: "PUT",
-                                                        headers: {
-                                                            "Content-Type": "application/json",
-                                                            "Authorization": `Bearer ${token}`
-                                                        },
-                                                        body: JSON.stringify({ username: val })
-                                                    });
-                                                    if (res.ok) {
-                                                        const data = await res.json();
-                                                        console.log("[Admin] Username updated successfully:", data.user);
-                                                        updateUser(data.user);
-                                                        toast.success("Administrátorské jméno bylo úspěšně změněno!");
-                                                    } else {
-                                                        const errData = await res.json().catch(() => ({}));
-                                                        console.error("[Admin] Username update failed:", res.status, errData);
-                                                        toast.error(errData.error || "Chyba při změně jména");
-                                                    }
-                                                } catch (e) {
-                                                    toast.error("Chyba sítě");
-                                                }
-                                            }}>Uložit</Button>
+                                        <div className="p-2 border border-border/50 rounded-md bg-secondary/20 text-sm">
+                                            {user?.username}
                                         </div>
                                     </div>
 

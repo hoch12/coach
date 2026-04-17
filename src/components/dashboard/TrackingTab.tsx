@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Dumbbell, Utensils, Plus, History } from "lucide-react";
 import { toast } from "sonner";
 import { getApiUrl } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface WorkoutLog {
     id: number;
@@ -27,6 +28,7 @@ interface NutritionLog {
 
 export function TrackingTab() {
     const { token } = useAuth();
+    const { t } = useLanguage();
     const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
 
     // Workout State
@@ -145,7 +147,7 @@ export function TrackingTab() {
         <div className="space-y-8 animate-fade-in">
             <div className="flex items-center justify-between glass-card p-4 rounded-xl">
                 <div className="space-y-1">
-                    <Label className="text-muted-foreground">Log Date</Label>
+                    <Label className="text-muted-foreground">{t('logDate', 'tabs')}</Label>
                     <Input
                         type="date"
                         value={date}
@@ -154,7 +156,7 @@ export function TrackingTab() {
                     />
                 </div>
                 <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total Logs Today</p>
+                    <p className="text-sm text-muted-foreground">{t('totalLogsToday', 'tabs')}</p>
                     <p className="text-2xl font-display font-bold text-gradient">{workoutLogs.length}</p>
                 </div>
             </div>
@@ -166,12 +168,12 @@ export function TrackingTab() {
                         <div className="p-2 rounded-lg bg-primary/10">
                             <Dumbbell className="h-5 w-5 text-primary" />
                         </div>
-                        <h2 className="text-xl font-display font-semibold">Log Exercise</h2>
+                        <h2 className="text-xl font-display font-semibold">{t('logExercise', 'tabs')}</h2>
                     </div>
 
                     <form onSubmit={handleAddWorkout} className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Exercise Name</Label>
+                            <Label>{t('exerciseName', 'tabs')}</Label>
                             <Input
                                 placeholder="e.g. Bench Press"
                                 value={exercise}
@@ -180,27 +182,27 @@ export function TrackingTab() {
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                             <div className="space-y-2">
-                                <Label>Sets</Label>
+                                <Label>{t('sets', 'tabs')}</Label>
                                 <Input type="number" min="1" placeholder="3" value={sets} onChange={(e) => setSets(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Reps</Label>
+                                <Label>{t('reps', 'tabs')}</Label>
                                 <Input type="number" min="1" placeholder="10" value={reps} onChange={(e) => setReps(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Weight (kg)</Label>
+                                <Label>{t('weight', 'tabs')}</Label>
                                 <Input type="number" step="0.5" min="0" placeholder="60" value={weight} onChange={(e) => setWeight(e.target.value)} />
                             </div>
                         </div>
                         <Button type="submit" className="w-full">
-                            <Plus className="h-4 w-4 mr-2" /> Add Set
+                            <Plus className="h-4 w-4 mr-2" /> {t('addSet', 'tabs')}
                         </Button>
                     </form>
 
                     {workoutLogs.length > 0 && (
                         <div className="mt-6 space-y-3">
                             <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                <History className="h-4 w-4" /> Today's Log
+                                <History className="h-4 w-4" /> {t('todaysLog', 'tabs')}
                             </h3>
                             <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                                 {workoutLogs.map((log) => (
@@ -222,12 +224,12 @@ export function TrackingTab() {
                         <div className="p-2 rounded-lg bg-accent/10">
                             <Utensils className="h-5 w-5 text-accent" />
                         </div>
-                        <h2 className="text-xl font-display font-semibold">Daily Calories</h2>
+                        <h2 className="text-xl font-display font-semibold">{t('dailyCalories', 'tabs')}</h2>
                     </div>
 
                     <form onSubmit={handleSaveCalories} className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Total Calories Consumed</Label>
+                            <Label>{t('totalCaloriesConsumed', 'tabs')}</Label>
                             <Input
                                 type="number"
                                 min="0"
@@ -238,26 +240,26 @@ export function TrackingTab() {
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                             <div className="space-y-2">
-                                <Label>Protein (g)</Label>
+                                <Label>{t('protein', 'tabs')} (g)</Label>
                                 <Input type="number" min="0" placeholder="150" value={protein} onChange={(e) => setProtein(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Carbs (g)</Label>
+                                <Label>{t('carbs', 'tabs')} (g)</Label>
                                 <Input type="number" min="0" placeholder="200" value={carbs} onChange={(e) => setCarbs(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Fat (g)</Label>
+                                <Label>{t('fat', 'tabs')} (g)</Label>
                                 <Input type="number" min="0" placeholder="70" value={fat} onChange={(e) => setFat(e.target.value)} />
                             </div>
                         </div>
                         <Button type="submit" variant="secondary" className="w-full">
-                            Save Nutrition
+                            {t('saveNutrition', 'tabs')}
                         </Button>
                     </form>
 
                     {nutritionLog && (
                         <div className="mt-6 p-4 rounded-xl bg-accent/5 border border-accent/20 text-center space-y-2">
-                            <p className="text-sm text-muted-foreground mb-1">Recorded for {date}</p>
+                            <p className="text-sm text-muted-foreground mb-1">{t('recordedFor', 'tabs')} {date}</p>
                             <p className="text-3xl font-display font-bold text-accent">{nutritionLog.calories} <span className="text-sm font-normal">kcal</span></p>
                             <div className="flex justify-center gap-4 text-sm text-muted-foreground">
                                 <span>P: {nutritionLog.protein}g</span>

@@ -15,10 +15,10 @@ import { OnboardingData, NutritionPlan } from "@/types/onboarding";
  * - stressLevel → cortisol-aware nutrition
  * - sleepQuality → sleep-supporting foods
  */
-export function generateNutritionPlan(data: OnboardingData): NutritionPlan {
+export function generateNutritionPlan(data: OnboardingData, lang: string = 'en'): NutritionPlan {
   const { calories, protein, carbs, fat } = calculateMacros(data);
-  const meals = generateMeals(data, calories);
-  const tips = generateNutritionTips(data);
+  const meals = generateMeals(data, calories, lang);
+  const tips = generateNutritionTips(data, lang);
 
   return { calories, protein, carbs, fat, meals, tips };
 }
@@ -36,9 +36,27 @@ function calculateMacros(data: OnboardingData) {
 
   let bmr = bmrMifflin;
 
+  // Body Fat estimation from bodyType if percentage not provided
+  let estimationBf = parseFloat(data.bodyFat);
+
+  if (isNaN(estimationBf) && data.bodyType) {
+    const isMale = data.gender !== "female";
+    const bodyTypeMap: Record<string, number> = {
+      "v-skinny": isMale ? 7 : 14,
+      "skinny": isMale ? 12 : 19,
+      "normal": isMale ? 17 : 25,
+      "athletic": isMale ? 11 : 18,
+      "shredded": isMale ? 6 : 12,
+      "overweight": isMale ? 23 : 30,
+      "obese": isMale ? 30 : 37,
+      "v-obese": isMale ? 40 : 47,
+    };
+    estimationBf = bodyTypeMap[data.bodyType] || NaN;
+  }
+
   // Katch-McArdle Formula (Much more accurate for high/low body fat)
-  if (data.bodyFat && !isNaN(parseFloat(data.bodyFat))) {
-    const bf = parseFloat(data.bodyFat);
+  if (!isNaN(estimationBf)) {
+    const bf = estimationBf;
     if (bf > 0 && bf < 80) {
       const leanBodyMass = weight * (1 - bf / 100);
       const bmrKatch = 370 + (21.6 * leanBodyMass);
@@ -147,7 +165,7 @@ interface MealSuggestion {
   calories: number;
 }
 
-function generateMeals(data: OnboardingData, totalCalories: number): MealSuggestion[] {
+function generateMeals(data: OnboardingData, totalCalories: number, lang: string): MealSuggestion[] {
   const freq = parseInt(data.mealFrequency) || 4;
   const calPerMeal = Math.round(totalCalories / freq);
   const diet = data.dietaryPreference;
@@ -157,9 +175,9 @@ function generateMeals(data: OnboardingData, totalCalories: number): MealSuggest
   const dislikes = data.dislikedFoods || "";
 
   // Build meal database filtered by preferences
-  const mealDb = getMealDatabase(diet, allergies, budget, favorites, dislikes);
+  const mealDb = getMealDatabase(diet, allergies, budget, favorites, dislikes, lang === 'cs');
 
-  const mealSlots = getMealSlots(freq);
+  const mealSlots = getMealSlots(freq, lang === 'cs');
 
   return mealSlots.map((slot, i) => {
     const options = mealDb[slot.category] || mealDb["default"];
@@ -172,35 +190,35 @@ function generateMeals(data: OnboardingData, totalCalories: number): MealSuggest
   });
 }
 
-function getMealSlots(freq: number): { name: string; category: string }[] {
+function getMealSlots(freq: number, isCs: boolean): { name: string; category: string }[] {
   if (freq <= 2) {
     return [
-      { name: "Main Meal 1 (Late Morning)", category: "lunch" },
-      { name: "Main Meal 2 (Evening)", category: "dinner" },
+      { name: isCs ? "Hlavní jídlo 1 (Dopoledne)" : "Main Meal 1 (Late Morning)", category: "lunch" },
+      { name: isCs ? "Hlavní jídlo 2 (Večer)" : "Main Meal 2 (Evening)", category: "dinner" },
     ];
   }
   if (freq === 3) {
     return [
-      { name: "Breakfast", category: "breakfast" },
-      { name: "Lunch", category: "lunch" },
-      { name: "Dinner", category: "dinner" },
+      { name: isCs ? "Snídaně" : "Breakfast", category: "breakfast" },
+      { name: isCs ? "Oběd" : "Lunch", category: "lunch" },
+      { name: isCs ? "Večeře" : "Dinner", category: "dinner" },
     ];
   }
   if (freq === 4) {
     return [
-      { name: "Breakfast", category: "breakfast" },
-      { name: "Lunch", category: "lunch" },
-      { name: "Afternoon Snack", category: "snack" },
-      { name: "Dinner", category: "dinner" },
+      { name: isCs ? "Snídaně" : "Breakfast", category: "breakfast" },
+      { name: isCs ? "Oběd" : "Lunch", category: "lunch" },
+      { name: isCs ? "Odpolední svačina" : "Afternoon Snack", category: "snack" },
+      { name: isCs ? "Večeře" : "Dinner", category: "dinner" },
     ];
   }
   // 5+
   return [
-    { name: "Breakfast", category: "breakfast" },
-    { name: "Mid-Morning Snack", category: "snack" },
-    { name: "Lunch", category: "lunch" },
-    { name: "Afternoon Snack", category: "snack" },
-    { name: "Dinner", category: "dinner" },
+    { name: isCs ? "Snídaně" : "Breakfast", category: "breakfast" },
+    { name: isCs ? "Dopolední svačina" : "Mid-Morning Snack", category: "snack" },
+    { name: isCs ? "Oběd" : "Lunch", category: "lunch" },
+    { name: isCs ? "Odpolední svačina" : "Afternoon Snack", category: "snack" },
+    { name: isCs ? "Večeře" : "Dinner", category: "dinner" },
   ];
 }
 
@@ -209,7 +227,8 @@ function getMealDatabase(
   allergies: string,
   budget: string,
   favoritesStr: string,
-  dislikesStr: string
+  dislikesStr: string,
+  isCs: boolean
 ): Record<string, string[]> {
   const hasLactose = allergies.includes("lactose");
   const hasGluten = allergies.includes("gluten");
@@ -242,7 +261,7 @@ function getMealDatabase(
     return filtered.map(m => {
       const lower = m.toLowerCase();
       for (const like of likes) {
-        if (lower.includes(like)) return `★ ${m} (Features your favorite!)`;
+        if (lower.includes(like)) return `★ ${m} ${isCs ? '(Obsahuje vaše oblíbené!)' : '(Features your favorite!)'}`;
       }
       return m;
     });
@@ -250,197 +269,284 @@ function getMealDatabase(
 
   if (diet === "vegan") {
     return {
-      breakfast: filter([
+      breakfast: filter(isCs ? [
+        "Tofu míchaná vajíčka se špenátem a celozrnným toustem",
+        "Ovesné vločky přes noc s chia semínky, banánem a lesním ovocem",
+        "Smoothie bowl s rostlinným proteinem, mraženým ovocem a granolou",
+        "Avokádový toast s konopnými semínky a cherry rajčaty",
+      ] : [
         "Tofu scramble with spinach and whole grain toast",
         "Overnight oats with chia seeds, banana, and berries",
         "Smoothie bowl with plant protein, frozen fruit, and granola",
         "Avocado toast with hemp seeds and cherry tomatoes",
       ]),
-      lunch: filter([
+      lunch: filter(isCs ? [
+        "Čočkové kari s hnědou rýží a dušenou zeleninou",
+        "Quinoa salát s cizrnou, pečenou zeleninou a tahini dresinkem",
+        "Black bean burrito bowl s avokádem a salsou",
+        isTight ? "Rýžový a fazolový guláš se sezónní zeleninou" : "Tempeh stir-fry se sezamovými nudlemi a edamame",
+      ] : [
         "Lentil curry with brown rice and steamed vegetables",
         "Quinoa salad with chickpeas, roasted veggies, and tahini dressing",
         "Black bean burrito bowl with avocado and salsa",
         isTight ? "Rice and bean stew with seasonal vegetables" : "Tempeh stir-fry with sesame noodles and edamame",
       ]),
-      dinner: filter([
+      dinner: filter(isCs ? [
+        "Cizrnový a sladký bramborový guláš s kuskusem",
+        "Plněné papriky s quinoou a černými fazolemi",
+        isTight ? "Těstoviny s marinara omáčkou a bílými fazolemi" : "Grilované tempeh steaky s pečenou zeleninou a divokou rýží",
+        "Červená čočka dahl s naan chlebem a okurkovým salátem",
+      ] : [
         "Chickpea and sweet potato stew with couscous",
         "Stuffed bell peppers with quinoa and black beans",
         isTight ? "Pasta with marinara sauce and white beans" : "Grilled tofu steaks with roasted vegetables and wild rice",
         "Red lentil dal with naan bread and cucumber salad",
       ]),
-      snack: filter([
+      snack: filter(isCs ? [
+        "Hummus se špalíčky mrkve a celeru",
+        "Směs oříšků a semínek se sušeným ovocem",
+        "Rýžové chlebíčky s avokádem",
+        isTight ? "Banán se slunečnicovým máslem" : "Proteinové kuličky s datlemi a kakaem",
+      ] : [
         "Hummus with carrot and celery sticks",
         "Trail mix with seeds and dried fruit",
         "Rice cakes with avocado",
         isTight ? "Banana with sunflower seed butter" : "Protein energy balls with dates and cacao",
       ]),
-      default: filter(["Balanced plant-based meal with protein and complex carbs"]),
+      default: filter(isCs ? ["Vyvážené rostlinné jídlo s bílkovinami a komplexními sacharidy"] : ["Balanced plant-based meal with protein and complex carbs"]),
     };
   }
 
   if (diet === "vegetarian") {
     return {
-      breakfast: filter([
+      breakfast: filter(isCs ? [
+        "Řecký jogurt s granolou a lesním ovocem",
+        "Míchaná vajíčka s celozrnným toustem a avokádem",
+        "Proteinové smoothie s banánem, vločkami a mlékem",
+        "Tvaroh s ovocem a medem",
+      ] : [
         "Greek yogurt parfait with granola and mixed berries",
         "Scrambled eggs with whole grain toast and avocado",
         "Protein smoothie with banana, oats, and milk",
         "Cottage cheese with fruit and honey",
       ]),
-      lunch: filter([
+      lunch: filter(isCs ? [
+        "Caprese salát s mozzarellou, rajčaty a celozrnným chlebem",
+        "Vajíčková smažená rýže se zeleninou a tofu",
+        "Čočková polévka s kváskovým chlebem a salátem",
+        isTight ? "Quesadilla s fazolemi a sýrem se salsou" : "Halloumi a wrap s pečenou zeleninou a hummusem",
+      ] : [
         "Caprese salad with mozzarella, tomato, and whole grain bread",
         "Egg fried rice with vegetables and tofu",
         "Lentil soup with sourdough bread and side salad",
         isTight ? "Bean and cheese quesadilla with salsa" : "Halloumi and roasted vegetable wrap with hummus",
       ]),
-      dinner: filter([
+      dinner: filter(isCs ? [
+        "Zeleninové stir-fry s vejcem a hnědou rýží",
+        "Těstoviny plněné špenátem a ricottou s marinara omáčkou",
+        "Tacos s černými fazolemi, sýrem a salsou",
+        isTight ? "Omeleta se zeleninou a toustem" : "Lilek parmigiana se salátem",
+      ] : [
         "Vegetable stir-fry with egg and brown rice",
         "Spinach and ricotta stuffed pasta with marinara",
-        "Black bean tacos with cheese, lettuce, and salsa",
+        "Black bean tactics with cheese, lettuce, and salsa",
         isTight ? "Omelette with mixed vegetables and toast" : "Eggplant parmesan with side salad",
       ]),
-      snack: filter([
+      snack: filter(isCs ? [
+        "Vejce natvrdo s ovocem",
+        "Řecký jogurt s ořechy a medem",
+        "Sýr a celozrnné krekry",
+        "Proteinový šejk s banánem",
+      ] : [
         "Hard-boiled eggs with fruit",
         "Greek yogurt with nuts and honey",
         "Cheese and whole grain crackers",
         "Protein shake with banana",
       ]),
-      default: filter(["Balanced vegetarian meal with complete protein"]),
+      default: filter(isCs ? ["Vyvážené vegetariánské jídlo s kompletními bílkovinami"] : ["Balanced vegetarian meal with complete protein"]),
     };
   }
 
   if (diet === "keto") {
     return {
-      breakfast: filter([
+      breakfast: filter(isCs ? [
+        "Slanina a vejce s avokádem a restovaným špenátem",
+        "Keto smoothie s MCT olejem, kakaem a krémovým sýrem",
+        "Sýrová omeleta s houbami a paprikou",
+        "Uzený losos s krémovým sýrem a okurkou",
+      ] : [
         "Bacon and eggs with avocado and sautéed spinach",
         "Keto smoothie with MCT oil, cocoa, and cream cheese",
         "Cheese omelette with mushrooms and bell peppers",
         "Smoked salmon with cream cheese and cucumber",
       ]),
-      lunch: filter([
+      lunch: filter(isCs ? [
+        "Grilovaný kuřecí Caesar salát (bez krutonů) s parmazánem",
+        "Burger bez bulky se sýrem, slaninou a avokádem",
+        "Tuňákový salát v avokádu s olivovým olejem",
+        isTight ? "Vajíčkový salát v listech salátu se sýrem" : "Steak salát s modrým sýrem a vlašskými ořechy",
+      ] : [
         "Grilled chicken Caesar salad (no croutons) with parmesan",
         "Bunless burger with cheese, bacon, and avocado",
         "Tuna salad stuffed avocado with olive oil dressing",
         isTight ? "Egg salad lettuce wraps with cheese" : "Steak salad with blue cheese and walnuts",
       ]),
-      dinner: filter([
+      dinner: filter(isCs ? [
+        "Losos na pánvi s chřestem a máslovou omáčkou",
+        "Kuřecí stehna s krémovou česnekovo-houbovou omáčkou a brokolicí",
+        isTight ? "Stir-fry z mletého hovězího s nízkosacharidovou zeleninou" : "Jehněčí kotlety s pečenou růžičkovou kapustou a bylinkovým máslem",
+        "Vepřový bůček s restovanou kadeřávkem a květákovou kaší",
+      ] : [
         "Pan-seared salmon with asparagus and butter sauce",
         "Chicken thighs with creamy garlic mushroom sauce and broccoli",
         isTight ? "Ground beef stir-fry with low-carb vegetables" : "Lamb chops with roasted Brussels sprouts and herb butter",
         "Pork belly with sautéed kale and cauliflower mash",
       ]),
-      snack: filter([
+      snack: filter(isCs ? [
+        "Kostky sýra s olivami",
+        "Vepřové kůže s guacamole",
+        "Celerové řapíky s krémovým sýrem",
+        "Hrst makadamových ořechů",
+      ] : [
         "Cheese cubes with olives",
         "Pork rinds with guacamole",
         "Celery sticks with cream cheese",
         "Handful of macadamia nuts",
       ]),
-      default: filter(["High-fat, moderate-protein, very low-carb meal"]),
+      default: filter(isCs ? ["Nízkosacharidové jídlo s vysokým obsahem tuku a bílkovin"] : ["High-fat, moderate-protein, very low-carb meal"]),
     };
   }
 
   // Omnivore / default
   return {
-    breakfast: filter([
+    breakfast: filter(isCs ? [
+      "Ovesná kaše s proteinem, banánem a mandlovým máslem",
+      "Míchaná vajíčka s celozrnným toustem a avokádem",
+      "Řecký jogurt s granolou, lesním ovocem a medem",
+      isTight ? "Vejce s rýží a fazolemi" : "Bagel s uzeným lososem, krémovým sýrem a kapary",
+    ] : [
       "Oatmeal with protein powder, banana, and almond butter",
       "Scrambled eggs with whole grain toast and avocado",
       "Greek yogurt with granola, berries, and honey",
       isTight ? "Eggs with rice and beans" : "Smoked salmon bagel with cream cheese and capers",
     ]),
-    lunch: filter([
+    lunch: filter(isCs ? [
+      "Grilované kuřecí prso s hnědou rýží a míchanou zeleninou",
+      isTight ? "Tuňákový sendvič na celozrnném chlebu se salátem" : "Krůtí a avokádový wrap se sladkými bramborovými hranolky",
+      "Stir-fry z libového hovězího s jasmínovou rýží a brokolicí",
+      "Kuřecí a quinoa bowl s pečenou zeleninou",
+    ] : [
       "Grilled chicken breast with brown rice and mixed vegetables",
       isTight ? "Tuna sandwich on whole grain bread with salad" : "Turkey and avocado wrap with sweet potato fries",
       "Lean beef stir-fry with jasmine rice and broccoli",
       "Chicken and quinoa bowl with roasted vegetables",
     ]),
-    dinner: filter([
+    dinner: filter(isCs ? [
+      "Lososový filet se sladkými bramborami a dušenou brokolicí",
+      isTight ? "Kuřecí stehna s rýží a mraženou zeleninou" : "Steak z bio hovězího s pečenými bramborami a chřestem",
+      "Pečená treska s citronem, quinoou a zelenými fazolkami",
+      "Krůtí masové kuličky s celozrnnými těstovinami a marinara omáčkou",
+    ] : [
       "Salmon fillet with sweet potato and steamed broccoli",
       isTight ? "Chicken thighs with rice and frozen vegetables" : "Grass-fed steak with roasted potatoes and asparagus",
       "Baked cod with lemon, quinoa, and green beans",
       "Turkey meatballs with whole grain pasta and marinara",
     ]),
-    snack: filter([
+    snack: filter(isCs ? [
+      "Řecký jogurt s ořechy a lesním ovocem",
+      "Rýžové chlebíčky s arašídovým máslem a medem",
+      "Proteinový šejk s banánem a vločkami",
+      isTight ? "Vejce natvrdo s ovocem" : "Sušené hovězí (jerky) s oříšky",
+    ] : [
       "Greek yogurt with mixed nuts and berries",
       "Rice cakes with peanut butter and honey",
       "Protein shake with banana and oats",
       isTight ? "Hard-boiled eggs with fruit" : "Beef jerky with trail mix",
     ]),
-    default: filter(["Balanced meal with lean protein and complex carbs"]),
+    default: filter(isCs ? ["Vyvážené jídlo s libovými bílkovinami a komplexními sacharidy"] : ["Balanced meal with lean protein and complex carbs"]),
   };
 }
 
-function generateNutritionTips(data: OnboardingData): string[] {
+function generateNutritionTips(data: OnboardingData, lang: string): string[] {
   const tips: string[] = [];
+  const isCs = lang === 'cs';
   const goals = data.fitnessGoals;
 
   if (data.allergies && data.allergies.toLowerCase() !== "none") {
-    tips.push(`Your meal plan has been constructed to explicitly avoid your recorded allergies/intolerances: ${data.allergies}`);
+    tips.push(isCs 
+      ? `Váš jídelníček byl sestaven tak, aby se vyhnul vašim alergiím/intolerancím: ${data.allergies}`
+      : `Your meal plan has been constructed to explicitly avoid your recorded allergies/intolerances: ${data.allergies}`);
   }
 
   if (data.favoriteFoods) {
-    tips.push(`Your meals feature your favorite foods (${data.favoriteFoods}). Utilizing what you like improves adherence.`);
+    tips.push(isCs
+      ? `V jídelníčku jsou zahrnuta vaše oblíbená jídla (${data.favoriteFoods}). To, že jíte co vám chutná, pomáhá s dodržováním plánu.`
+      : `Your meals feature your favorite foods (${data.favoriteFoods}). Utilizing what you like improves adherence.`);
   }
 
   if (data.dislikedFoods) {
-    tips.push(`We've actively excluded your disliked foods (${data.dislikedFoods}) from the recommendations.`);
+    tips.push(isCs
+      ? `Z doporučení jsme aktivně vyřadili jídla, která nemáte rádi (${data.dislikedFoods}).`
+      : `We've actively excluded your disliked foods (${data.dislikedFoods}) from the recommendations.`);
   }
 
   // Calorie awareness-based tips
   if (data.calorieAwareness === "none") {
-    tips.push("Start by simply tracking what you eat for one week — awareness is the first step");
-    tips.push("Use your hand as a portion guide: palm = protein, fist = carbs, thumb = fats");
+    tips.push(isCs ? "Začněte tím, že si budete týden prostě zapisovat, co jíte – uvědomění je první krok" : "Start by simply tracking what you eat for one week — awareness is the first step");
+    tips.push(isCs ? "Používejte ruku jako vodítko pro porce: dlaň = bílkoviny, pěst = sacharidy, palec = tuky" : "Use your hand as a portion guide: palm = protein, fist = carbs, thumb = fats");
   } else if (data.calorieAwareness === "basic") {
-    tips.push("Consider using a food tracking app for the first 2-3 weeks to calibrate your portions");
+    tips.push(isCs ? "Zvažte použití aplikace na sledování jídla po dobu prvních 2-3 týdnů pro kalibraci vašich porcí" : "Consider using a food tracking app for the first 2-3 weeks to calibrate your portions");
   } else {
-    tips.push("You already understand calories — focus on food quality and micronutrient density");
+    tips.push(isCs ? "Už rozumíte kaloriím – soustřeďte se na kvalitu potravin a hustotu mikroživin" : "You already understand calories — focus on food quality and micronutrient density");
   }
 
   // Eating habits tips
   if (data.eatingHabits === "social") {
-    tips.push("For social dining: look up menus beforehand, prioritize protein, and ask for dressings on the side.");
+    tips.push(isCs ? "Při jídle v restauraci: podívejte se na jídelníček předem, upřednostněte bílkoviny a dresingy si žádejte bokem." : "For social dining: look up menus beforehand, prioritize protein, and ask for dressings on the side.");
   } else if (data.eatingHabits === "emotional") {
-    tips.push("If you're an emotional eater, try to pause for 5 minutes and drink a glass of water before reacting to cravings. Identify the trigger.");
+    tips.push(isCs ? "Pokud jíte emočně, zkuste se na 5 minut zastavit a vypít sklenici vody, než zareagujete na chuť. Identifikujte spouštěč." : "If you're an emotional eater, try to pause for 5 minutes and drink a glass of water before reacting to cravings. Identify the trigger.");
   } else if (data.eatingHabits === "intuitive") {
-    tips.push("Since you eat intuitively, focus heavily on protein and fiber to naturally regulate hunger signals.");
+    tips.push(isCs ? "Protože jíte intuitivně, zaměřte se hodně na bílkoviny a vlákninu pro přirozenou regulaci signálů hladu." : "Since you eat intuitively, focus heavily on protein and fiber to naturally regulate hunger signals.");
   } else if (data.eatingHabits === "structured") {
-    tips.push("Your structured eating habit is great for consistency. Consider doing a large Sunday meal prep to lock in your success.");
+    tips.push(isCs ? "Váš strukturovaný návyk v jídle je skvělý pro konzistenci. Zvažte nedělní přípravu jídla (meal prep), abyste si pojistili úspěch." : "Your structured eating habit is great for consistency. Consider doing a large Sunday meal prep to lock in your success.");
   }
 
   // Budget tips
   if (data.budgetLimitation === "tight") {
-    tips.push("Buy in bulk: rice, oats, eggs, frozen vegetables, and canned beans are cost-effective staples");
-    tips.push("Meal prep on weekends to reduce waste and save money");
+    tips.push(isCs ? "Nakupujte ve velkém: rýže, vločky, vejce, mražená zelenina a fazole v plechovce jsou cenově výhodné základy" : "Buy in bulk: rice, oats, eggs, frozen vegetables, and canned beans are cost-effective staples");
+    tips.push(isCs ? "Připravujte si jídlo o víkendech, abyste snížili množství odpadu a ušetřili peníze" : "Meal prep on weekends to reduce waste and save money");
   }
 
   // Stress-based nutrition
   if (data.stressLevel === "high") {
-    tips.push("Include magnesium-rich foods (dark leafy greens, dark chocolate, nuts) to help manage cortisol");
-    tips.push("Avoid excessive caffeine — it can amplify stress hormones");
+    tips.push(isCs ? "Zahrňte potraviny bohaté na hořčík (listová zelenina, hořká čokoláda, ořechy), které pomohou zvládnout kortizol" : "Include magnesium-rich foods (dark leafy greens, dark chocolate, nuts) to help manage cortisol");
+    tips.push(isCs ? "Vyhněte se nadměrnému množství kofeinu – může zesilovat stresové hormony" : "Avoid excessive caffeine — it can amplify stress hormones");
   }
 
   // Sleep-based nutrition
   if (data.sleepQuality === "poor") {
-    tips.push("Avoid large meals within 2 hours of bedtime");
-    tips.push("Consider foods rich in tryptophan (turkey, milk, bananas) in your evening meal");
+    tips.push(isCs ? "Vyhněte se velkým jídlům 2 hodiny před spaním" : "Avoid large meals within 2 hours of bedtime");
+    tips.push(isCs ? "Ve večerním jídle zvažte potraviny bohaté na tryptofan (krůtí maso, mléko, banány)" : "Consider foods rich in tryptophan (turkey, milk, bananas) in your evening meal");
   }
 
   // Goal-specific
   if (goals.includes("fat-loss")) {
-    tips.push("Prioritize protein at every meal to maintain muscle and increase satiety");
-    tips.push("Fill half your plate with vegetables to increase volume without excess calories");
+    tips.push(isCs ? "Upřednostněte bílkoviny v každém jídle pro udržení svalů a zvýšení sytosti" : "Prioritize protein at every meal to maintain muscle and increase satiety");
+    tips.push(isCs ? "Naplňte polovinu talíře zeleninou pro zvětšení objemu jídla bez nadbytečných kalorií" : "Fill half your plate with vegetables to increase volume without excess calories");
   }
   if (goals.includes("muscle-gain")) {
-    tips.push("Eat protein within 2 hours of training for optimal muscle protein synthesis");
-    tips.push("Don't skip post-workout nutrition — a combination of protein and carbs is ideal");
+    tips.push(isCs ? "Jezte bílkoviny do 2 hodin od tréninku pro optimální syntézu svalových bílkovin" : "Eat protein within 2 hours of training for optimal muscle protein synthesis");
+    tips.push(isCs ? "Nevynechávejte jídlo po tréninku – ideální je kombinace bílkovin a sacharidů" : "Don't skip post-workout nutrition — a combination of protein and carbs is ideal");
   }
 
   // Poor diet obstacle
   if (data.obstacles.includes("poor-diet")) {
-    tips.push("Start by replacing one processed meal per day with a whole-food alternative");
-    tips.push("Keep healthy snacks visible and accessible — you eat what you see");
+    tips.push(isCs ? "Začněte nahrazením jednoho průmyslově zpracovaného jídla denně čerstvou alternativou" : "Start by replacing one processed meal per day with a whole-food alternative");
+    tips.push(isCs ? "Mějte zdravé svačiny na očích a přístupné – jíte to, co vidíte" : "Keep healthy snacks visible and accessible — you eat what you see");
   }
 
   // Hydration (universal)
-  tips.push("Aim for 2-3 liters of water daily — more on training days");
+  tips.push(isCs ? "Snažte se vypít 2-3 litry vody denně – v tréninkové dny více" : "Aim for 2-3 liters of water daily — more on training days");
 
   return tips;
 }

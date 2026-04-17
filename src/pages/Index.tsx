@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { Dumbbell, Target, Utensils, Brain, ChevronRight, Flame } from "lucide-react";
+import { Dumbbell, Target, Utensils, Brain, ChevronRight, Flame, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import heroImage from "@/assets/hero-fitness.jpg";
 
 const features = [
@@ -31,6 +32,7 @@ const features = [
 const Index = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
 
   return (
     <div className="min-h-screen bg-background">
@@ -57,22 +59,36 @@ const Index = () => {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex items-center bg-background/50 backdrop-blur rounded-lg p-1 mr-2 border border-border/50">
+                <button 
+                  onClick={() => setLanguage('en')} 
+                  className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:text-primary'}`}
+                >
+                  EN
+                </button>
+                <button 
+                  onClick={() => setLanguage('cs')} 
+                  className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'cs' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:text-primary'}`}
+                >
+                  CS
+                </button>
+            </div>
             {user ? (
               <div className="flex items-center gap-2">
                 <Button variant="heroOutline" size="sm" onClick={() => navigate("/dashboard")} className="hidden xs:inline-flex">
-                  Go to Dashboard
+                  {t('goToDashboard', 'landing')}
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => { logout(); navigate("/login"); }} className="text-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                  Logout
+                  {t('logout', 'landing')}
                 </Button>
               </div>
             ) : (
               <>
                 <Button variant="ghost" size="sm" onClick={() => navigate("/login")} className="text-foreground hover:bg-secondary">
-                  Login
+                  {t('login', 'landing')}
                 </Button>
                 <Button variant="heroOutline" size="sm" onClick={() => navigate("/register")}>
-                  Get Started
+                  {t('getStarted', 'landing')}
                 </Button>
               </>
             )}
@@ -87,25 +103,24 @@ const Index = () => {
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
             <span className="inline-block mb-4 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium border border-primary/20">
-              Free · Science-Based · Sustainable
+              {t('tags', 'landing')}
             </span>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold leading-[1.1] mb-6">
-              Your body deserves{" "}
-              <span className="text-gradient">a real plan.</span>
+              {t('title1', 'landing')}{" "}
+              <span className="text-gradient">{t('title2', 'landing')}</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-xl mb-10 leading-relaxed">
-              No gimmicks. No overpriced subscriptions. Just honest, personalized training,
-              nutrition, and lifestyle plans built on real experience.
+              {t('subtitle', 'landing')}
             </p>
             <div className="flex flex-wrap gap-4">
               <Button variant="hero" size="xl" onClick={() => navigate(user ? "/dashboard" : "/register")}>
-                {user ? "Go to Dashboard" : "Start Your Plan"}
+                {user ? t('goToDashboard', 'landing') : t('startPlan', 'landing')}
                 <ChevronRight className="ml-1 h-5 w-5" />
               </Button>
               <Button variant="heroOutline" size="xl" onClick={() => {
                 document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
               }}>
-                Learn More
+                {t('learnMore', 'landing')}
               </Button>
             </div>
           </motion.div>
@@ -123,12 +138,11 @@ const Index = () => {
             transition={{ duration: 0.6 }}
           >
             <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
-              Everything you need.{" "}
-              <span className="text-gradient">Nothing you don't.</span>
+              {t('featTitle1', 'landing')}{" "}
+              <span className="text-gradient">{t('featTitle2', 'landing')}</span>
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              A complete system that covers training, nutrition, and the mindset
-              shifts that actually make lasting change.
+              {t('featSubtitle', 'landing')}
             </p>
           </motion.div>
 
@@ -147,8 +161,8 @@ const Index = () => {
                     <feature.icon className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-display font-semibold mb-2">{feature.title}</h3>
-                    <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+                    <h3 className="text-lg font-display font-semibold mb-2">{t(`f${i+1}Title`, 'landing') || feature.title}</h3>
+                    <p className="text-muted-foreground leading-relaxed">{t(`f${i+1}Desc`, 'landing') || feature.description}</p>
                   </div>
                 </div>
               </motion.div>
@@ -167,13 +181,13 @@ const Index = () => {
           transition={{ duration: 0.5 }}
         >
           <h2 className="text-3xl md:text-4xl font-display font-bold mb-4">
-            Ready to build a better version of yourself?
+            {t('ctaTitle', 'landing')}
           </h2>
           <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
-            Complete a detailed onboarding and get your personalized plan in minutes. No credit card. No catches.
+            {t('ctaDesc', 'landing')}
           </p>
           <Button variant="hero" size="xl" onClick={() => navigate(user ? "/dashboard" : "/register")}>
-            {user ? "Go to Dashboard" : "Get Your Free Plan"}
+            {user ? t('goToDashboard', 'landing') : t('getFreePlan', 'landing')}
             <ChevronRight className="ml-1 h-5 w-5" />
           </Button>
         </motion.div>
@@ -187,7 +201,7 @@ const Index = () => {
             <span className="font-display font-semibold text-foreground">Coach-E</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            Built on real experience. No gimmicks, no shortcuts.
+            {t('footerDesc', 'landing')}
           </p>
         </div>
       </footer>

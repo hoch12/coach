@@ -1,56 +1,59 @@
 import { OnboardingData } from "@/types/onboarding";
 import { Label } from "@/components/ui/label";
 import { ListChecks, Shuffle, Target } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Props {
   data: OnboardingData;
   onChange: (partial: Partial<OnboardingData>) => void;
 }
 
-const styles = [
-  {
-    id: "simple",
-    label: "Simple Plan",
-    description: "Straightforward, easy to follow. Perfect for beginners.",
-    icon: ListChecks,
-  },
-  {
-    id: "structured",
-    label: "Structured & Strict",
-    description: "Detailed, disciplined approach with precise targets.",
-    icon: Target,
-  },
-  {
-    id: "flexible",
-    label: "Flexible Approach",
-    description: "Adaptable framework that fits around your lifestyle.",
-    icon: Shuffle,
-  },
-];
-
 export function StepPlanStyle({ data, onChange }: Props) {
+  const { t } = useLanguage();
+
+  const styles = [
+    {
+      id: "simple",
+      label: t('simplePlan', 'onboarding'),
+      description: t('simplePlanDesc', 'onboarding'),
+      icon: ListChecks,
+    },
+    {
+      id: "structured",
+      label: t('structuredStrict', 'onboarding'),
+      description: t('structuredStrictDesc', 'onboarding'),
+      icon: Target,
+    },
+    {
+      id: "flexible",
+      label: t('flexibleApproach', 'onboarding'),
+      description: t('flexibleApproachDesc', 'onboarding'),
+      icon: Shuffle,
+    },
+  ];
+
   return (
-    <div className="space-y-4">
-      <Label>How should your plan be structured?</Label>
-      <div className="grid gap-3">
+    <div className="space-y-6">
+      <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('planStructure', 'onboarding')}</Label>
+      <div className="grid gap-4">
         {styles.map((style) => {
           const selected = data.planStyle === style.id;
           return (
             <button
               key={style.id}
               onClick={() => onChange({ planStyle: style.id })}
-              className={`flex items-start gap-4 p-5 rounded-xl border text-left transition-all ${
+              className={`flex items-start gap-4 p-5 rounded-2xl border-2 transition-all ${
                 selected
-                  ? "bg-primary/10 border-primary"
-                  : "bg-secondary border-border hover:border-primary/40"
+                  ? "bg-primary/10 border-primary shadow-lg shadow-primary/5 scale-[1.01]"
+                  : "bg-secondary/40 border-border/50 hover:border-primary/40"
               }`}
             >
-              <div className={`mt-0.5 p-2 rounded-lg ${selected ? "bg-primary/20" : "bg-muted"}`}>
-                <style.icon className={`h-5 w-5 ${selected ? "text-primary" : "text-muted-foreground"}`} />
+              <div className={`mt-0.5 p-3 rounded-xl ${selected ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
+                <style.icon className="h-6 w-6" />
               </div>
               <div>
-                <p className="font-medium text-sm">{style.label}</p>
-                <p className="text-sm text-muted-foreground mt-0.5">{style.description}</p>
+                <p className={`font-bold text-sm ${selected ? "text-primary" : "text-foreground"}`}>{style.label}</p>
+                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{style.description}</p>
               </div>
             </button>
           );
