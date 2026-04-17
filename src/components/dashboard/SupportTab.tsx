@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { getApiUrl } from "@/lib/utils";
-import { Send, MessageCircle, Clock, CheckCircle } from "lucide-react";
+import { Send, MessageCircle, Clock, CheckCircle, AlertCircle } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Ticket {
@@ -65,7 +65,7 @@ const SupportTab = () => {
         if (user && !user.trainer_id) {
             setRecipient("admin");
         }
-    }, [user]);
+    }, [user, user?.trainer_id]);
 
     useEffect(() => {
         fetchTickets();
@@ -90,41 +90,55 @@ const SupportTab = () => {
         if (!newMessage.trim()) return;
 
         setIsSubmitting(true);
-        const targetRecipient = recipient; // Capture current state to avoid race conditions
+        const targetRecipient = recipient;
 
         try {
-            console.log(`[SupportTab] Submitting message to ${targetRecipient}:`, newMessage);
-
-            const res = await fetch(getApiUrl("/api/support"), {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    message: newMessage,
-                    target: targetRecipient // Explicitly send 'admin' or 'coach'
-                }),
+            // Messenger Logic: Find an 'open' ticket to reply to
+            const relevantTickets = tickets.filter(t => {
+                if (targetRecipient === 'admin') return t.trainer_id === null || t.trainer_id === 0;
+                return t.trainer_id !== null && t.trainer_id !== 0;
             });
+            
+            const openTicket = relevantTickets.find(t => t.status === 'open');
 
-            if (res.ok) {
-                const data = await res.json();
-                console.log("[SupportTab] Message sent successfully. Server response:", data);
-
-                const successMsg = data.recipient === "admin"
-                    ? t('msgSentAdmin', 'tabs')
-                    : t('msgSentCoach', 'tabs');
-
-                toast.success(successMsg);
-                setNewMessage("");
-                fetchTickets();
+            if (openTicket) {
+                // Reply to the open ticket
+                const res = await fetch(getApiUrl(`/api/support/${openTicket.id}/reply`), {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ reply: newMessage }),
+                });
+                if (res.ok) {
+                    toast.success(targetRecipient === "admin" ? t('msgSentAdmin', 'tabs') : t('msgSentCoach', 'tabs'));
+                    setNewMessage("");
+                    fetchTickets();
+                }
             } else {
-                const errData = await res.json().catch(() => ({}));
-                console.error("[SupportTab] Send message failed:", res.status, errData);
-                toast.error(`${t('sendError', 'tabs')} ${errData.error || res.statusText}`);
+                // Initiate new ticket
+                const res = await fetch(getApiUrl("/api/support"), {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        message: newMessage,
+                        target: targetRecipient
+                    }),
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    toast.success(data.recipient === "admin" ? t('msgSentAdmin', 'tabs') : t('msgSentCoach', 'tabs'));
+                    setNewMessage("");
+                    fetchTickets();
+                }
             }
         } catch (e) {
-            console.error("[SupportTab] Network error:", e);
+            console.error(e);
             toast.error("Network error - could not send message.");
         } finally {
             setIsSubmitting(false);
@@ -133,11 +147,32 @@ const SupportTab = () => {
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">
-            <div>
-                <h1 className="text-3xl font-display font-bold tracking-tight">{t('coachSupportTitle', 'tabs')}</h1>
-                <p className="text-muted-foreground mt-2 text-lg">
-                    {t('coachSupportDesc', 'tabs')}
-                </p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-display font-bold tracking-tight">{t('coachSupportTitle', 'tabs')}</h1>
+                    <p className="text-muted-foreground mt-1 text-sm">
+                        {t('coachSupportDesc', 'tabs')}
+                    </p>
+                </div>
+                
+                <div className="flex gap-2 p-1 bg-secondary/20 rounded-xl w-fit h-fit">
+                    <Button 
+                        variant={recipient === "coach" ? "hero" : "ghost"} 
+                        size="sm" 
+                        onClick={() => setRecipient("coach")}
+                        className="rounded-lg px-6"
+                    >
+                        {t('coachSupport', 'tabs')}
+                    </Button>
+                    <Button 
+                        variant={recipient === "admin" ? "hero" : "ghost"} 
+                        size="sm" 
+                        onClick={() => setRecipient("admin")}
+                        className="rounded-lg px-6"
+                    >
+                        System Admin
+                    </Button>
+                </div>
             </div>
 
             <Card className="bg-card/50 border-border/50 backdrop-blur-sm flex flex-col h-[600px] overflow-hidden">
@@ -150,28 +185,48 @@ const SupportTab = () => {
                 </CardHeader>
 
                 <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
-                    {chatMessages.length === 0 ? (
+                    {recipient === "coach" && !user?.trainer_id ? (
+                        <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
+                            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                                <AlertCircle className="h-8 w-8 text-destructive" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold">{t('noTrainerAssigned', 'tabs')}</h3>
+                                <p className="text-muted-foreground max-w-sm mt-2">{t('noTrainerDesc', 'tabs')}</p>
+                            </div>
+                        </div>
+                    ) : chatMessages.filter(m => (recipient === 'admin' ? m.sender === 'admin' || (m.sender === 'me' && !tickets.find(t => String(t.id) === m.id)?.trainer_id) : m.sender === 'coach' || (m.sender === 'me' && !!tickets.find(t => String(t.id) === m.id)?.trainer_id))).length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50">
                             <MessageCircle className="h-8 w-8 mb-3" />
                             <p>{t('noMessagesYet', 'tabs')}</p>
                         </div>
                     ) : (
-                        chatMessages.map(msg => (
-                            <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[75%] p-3 rounded-2xl ${msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-secondary text-secondary-foreground border border-border/50 rounded-tl-sm'}`}>
-                                    {msg.sender !== 'me' && (
-                                        <p className="text-[10px] font-bold opacity-50 mb-1 uppercase flex items-center gap-1">
-                                            {msg.sender === 'coach' ? t('coachReply', 'tabs') : t('adminReply', 'tabs')}
-                                        </p>
-                                    )}
-                                    <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
-                                    <div className={`flex items-center gap-1 mt-1 text-[10px] ${msg.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        {msg.isOpen && <Clock className="h-3 w-3 ml-1" />}
+                        chatMessages
+                            .filter(m => {
+                                // Filter messages based on active recipient channel
+                                const originalTicket = tickets.find(t => String(t.id) === m.id);
+                                if (recipient === "admin") {
+                                    return m.sender === "admin" || (m.sender === "me" && (!originalTicket?.trainer_id || originalTicket?.trainer_id === 0));
+                                } else {
+                                    return m.sender === "coach" || (m.sender === "me" && originalTicket?.trainer_id && originalTicket?.trainer_id !== 0);
+                                }
+                            })
+                            .map(msg => (
+                                <div key={msg.id} className={`flex ${msg.sender === 'me' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[75%] p-3 rounded-2xl ${msg.sender === 'me' ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-secondary text-secondary-foreground border border-border/50 rounded-tl-sm'}`}>
+                                        {msg.sender !== 'me' && (
+                                            <p className="text-[10px] font-bold opacity-50 mb-1 uppercase flex items-center gap-1">
+                                                {msg.sender === 'coach' ? t('coachReply', 'tabs') : t('adminReply', 'tabs')}
+                                            </p>
+                                        )}
+                                        <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                                        <div className={`flex items-center gap-1 mt-1 text-[10px] ${msg.sender === 'me' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {msg.isOpen && <Clock className="h-3 w-3 ml-1" />}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))
+                            ))
                     )}
                 </div>
 
@@ -184,7 +239,7 @@ const SupportTab = () => {
                             className="flex-1 bg-background"
                             disabled={isSubmitting}
                         />
-                        <Button type="submit" variant="hero" disabled={isSubmitting || !newMessage.trim()}>
+                        <Button type="submit" variant="hero" disabled={isSubmitting || !newMessage.trim() || (recipient === "coach" && !user?.trainer_id)}>
                             {isSubmitting ? t('sending', 'tabs') : <Send className="h-4 w-4" />}
                         </Button>
                     </form>

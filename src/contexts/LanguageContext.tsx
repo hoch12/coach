@@ -131,7 +131,9 @@ const translations: Record<Language, Record<string, Record<string, string>>> = {
       busy: "Busy",
       selectClientFirst: "Please select a client first",
       sessionBooked: "Session booked successfully!",
-      failedToBook: "Failed to book session"
+      failedToBook: "Failed to book session",
+      noTrainerAssigned: "No Trainer Assigned",
+      noTrainerDesc: "You must be assigned a coach to use this chat channel. Please contact administrator if you believe this is an error."
     },
     plan: {
       monday: "Monday",
@@ -533,7 +535,9 @@ const translations: Record<Language, Record<string, Record<string, string>>> = {
       busy: "Obsazeno",
       selectClientFirst: "Prosím, zejdříve vyberte klienta.",
       sessionBooked: "Lekce úspěšně zarezervována!",
-      failedToBook: "Chyba při rezervaci lekce"
+      failedToBook: "Chyba při rezervaci lekce",
+      noTrainerAssigned: "Není přiřazen žádný trenér",
+      noTrainerDesc: "Pro využívání tohoto chatu vám musí být přiřazen trenér. Pokud si myslíte, že jde o chybu, kontaktujte administrátora."
     },
     plan: {
       monday: "Pondělí",
