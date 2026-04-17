@@ -210,7 +210,7 @@ export default function TrainerDashboard() {
                     res = await fetch(getApiUrl("/api/support"), {
                         method: "POST",
                         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                        body: JSON.stringify({ message: replyText })
+                        body: JSON.stringify({ message: replyText, target: "admin" })
                     });
                 } else {
                     // Trainer to Client

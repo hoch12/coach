@@ -582,8 +582,8 @@ const AdminPanel = () => {
                                                         <div className="flex justify-between items-center mb-0.5">
                                                             <div className="flex items-center gap-2 truncate">
                                                                 <span className="font-bold text-sm truncate">{lastMsg?.username}</span>
-                                                                <Badge variant={lastMsg?.user_role === 'trainer' ? 'hero' : 'secondary'} className="text-[7px] px-1 py-0 h-3 leading-none uppercase font-black">
-                                                                    {lastMsg?.user_role === 'trainer' ? 'Trainer' : 'Client'}
+                                                                <Badge variant={lastMsg?.user_role?.toLowerCase() === 'trainer' ? 'hero' : 'secondary'} className="text-[7px] px-1 py-0 h-3 leading-none uppercase font-black">
+                                                                    {lastMsg?.user_role?.toLowerCase() === 'trainer' ? 'Trainer' : 'Client'}
                                                                 </Badge>
                                                             </div>
                                                             {unread > 0 && <span className="bg-primary text-primary-foreground text-[8px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-primary/20">{unread}</span>}
@@ -609,7 +609,7 @@ const AdminPanel = () => {
                                             <div className="flex flex-col">
                                                 <span className="text-xs font-bold leading-none">{tickets.find(t => t.id === replyingTo)?.username}</span>
                                                 <span className="text-[8px] font-black uppercase tracking-tighter opacity-50">
-                                                    {tickets.find(t => t.id === replyingTo)?.user_role === 'trainer' ? 'Trainer Communication' : 'Client Communication'}
+                                                    {tickets.find(t => t.id === replyingTo)?.user_role?.toLowerCase() === 'trainer' ? 'Trainer Communication' : 'Client Communication'}
                                                 </span>
                                             </div>
                                         </div>
