@@ -1,6 +1,12 @@
-2.14.4
+2.14.5
 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.14.5] - 2026-04-19
+### Fixed
+- **Admin Inbox Regression**: Fixed a `ReferenceError` that broke the Admin message sidebar due to a missing variable definition.
+- **Conversation Sorting**: Implemented activity-based sorting in the Trainer dashboard. Conversations with the most recent messages are now automatically moved to the top of the client list.
+- **Notification Consistency**: Synchronized the "pending reply" notification logic across all dashboards.
 
 ## [2.14.4] - 2026-04-19
 ### Changed

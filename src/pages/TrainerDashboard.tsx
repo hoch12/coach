@@ -548,25 +548,31 @@ export default function TrainerDashboard() {
 
                                         <div className="h-px bg-border/30 my-2" />
 
-                                        {clients.map(client => {
-                                            const clientTickets = tickets.filter(t => Number((t as any).user_id) === Number(client.id));
-                                            const hasUnread = clientTickets.some(t => t.status === 'open');
-                                            return (
-                                                <div 
-                                                    key={client.id}
-                                                    onClick={() => setSelectedChatUser(client)}
-                                                    className={`p-3 rounded-xl cursor-pointer hover:bg-accent/10 transition-colors flex justify-between items-center ${selectedChatUser?.id === client.id ? 'bg-primary/10 border border-primary/20' : ''}`}
-                                                >
-                                                    <span className="font-semibold text-sm">{client.username}</span>
-                                                    {(() => {
-                                                        const sorted = [...clientTickets].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                                                        const lastMsg = sorted[sorted.length - 1];
-                                                        const hasUnread = lastMsg && Number(lastMsg.sender_id) !== Number(user?.id) && lastMsg.status === 'open';
-                                                        return hasUnread && <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" />;
-                                                    })()}
-                                                </div>
-                                            );
-                                        })}
+                                        {[...clients]
+                                            .sort((a, b) => {
+                                                const ticketsA = tickets.filter(t => Number((t as any).user_id) === Number(a.id));
+                                                const ticketsB = tickets.filter(t => Number((t as any).user_id) === Number(b.id));
+                                                const timeA = ticketsA.length > 0 ? Math.max(...ticketsA.map(t => new Date(t.created_at).getTime())) : 0;
+                                                const timeB = ticketsB.length > 0 ? Math.max(...ticketsB.map(t => new Date(t.created_at).getTime())) : 0;
+                                                return timeB - timeA;
+                                            })
+                                            .map(client => {
+                                                const clientTickets = tickets.filter(t => Number((t as any).user_id) === Number(client.id));
+                                                const sorted = [...clientTickets].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                                                const lastMsg = sorted[sorted.length - 1];
+                                                const hasUnread = lastMsg && Number(lastMsg.sender_id) !== Number(user?.id) && lastMsg.status === 'open';
+                                                
+                                                return (
+                                                    <div 
+                                                        key={client.id}
+                                                        onClick={() => setSelectedChatUser(client)}
+                                                        className={`p-3 rounded-xl cursor-pointer hover:bg-accent/10 transition-colors flex justify-between items-center ${selectedChatUser?.id === client.id ? 'bg-primary/10 border border-primary/20' : ''}`}
+                                                    >
+                                                        <span className="font-semibold text-sm">{client.username}</span>
+                                                        {hasUnread && <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" />}
+                                                    </div>
+                                                );
+                                            })}
                                         {clients.length === 0 && <p className="text-xs text-muted-foreground p-2 text-center opacity-50">No clients assigned.</p>}
                                     </div>
                                 </div>

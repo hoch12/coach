@@ -571,6 +571,7 @@ const AdminPanel = () => {
                                             return latestB - latestA;
                                         })
                                         .map(uid => {
+                                            const userTickets = tickets.filter(t => t.user_id === uid);
                                             const sorted = [...userTickets].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
                                             const lastMsg = sorted[sorted.length - 1];
                                             const isPendingReply = lastMsg && Number(lastMsg.sender_id) !== Number(user?.id) && lastMsg.status === 'open';
