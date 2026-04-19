@@ -155,23 +155,49 @@ const SupportTab = () => {
                     </p>
                 </div>
                 
-                <div className="flex gap-2 p-1 bg-secondary/20 rounded-xl w-fit h-fit">
-                    <Button 
-                        variant={recipient === "coach" ? "hero" : "ghost"} 
-                        size="sm" 
-                        onClick={() => setRecipient("coach")}
-                        className="rounded-lg px-6"
-                    >
-                        {t('coachSupport', 'tabs')}
-                    </Button>
-                    <Button 
-                        variant={recipient === "admin" ? "hero" : "ghost"} 
-                        size="sm" 
-                        onClick={() => setRecipient("admin")}
-                        className="rounded-lg px-6"
-                    >
-                        System Admin
-                    </Button>
+                <div className="flex gap-2 p-1 bg-secondary/20 rounded-xl w-fit h-fit relative">
+                    {(() => {
+                        const coachTickets = tickets.filter(t => t.trainer_id !== null && t.trainer_id !== 0)
+                            .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                        const lastCoachMsg = coachTickets[coachTickets.length - 1];
+                        const hasUnreadCoach = lastCoachMsg && Number(lastCoachMsg.sender_id) !== Number(user?.id) && lastCoachMsg.status === 'open';
+
+                        const adminTickets = tickets.filter(t => t.trainer_id === null || t.trainer_id === 0)
+                            .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                        const lastAdminMsg = adminTickets[adminTickets.length - 1];
+                        const hasUnreadAdmin = lastAdminMsg && Number(lastAdminMsg.sender_id) !== Number(user?.id) && lastAdminMsg.status === 'open';
+
+                        return (
+                            <>
+                                <div className="relative">
+                                    <Button 
+                                        variant={recipient === "coach" ? "hero" : "ghost"} 
+                                        size="sm" 
+                                        onClick={() => setRecipient("coach")}
+                                        className="rounded-lg px-6"
+                                    >
+                                        {t('coachSupport', 'tabs')}
+                                    </Button>
+                                    {hasUnreadCoach && (
+                                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full border-2 border-background shadow-[0_0_8px_rgba(var(--primary),0.5)] z-20" />
+                                    )}
+                                </div>
+                                <div className="relative">
+                                    <Button 
+                                        variant={recipient === "admin" ? "hero" : "ghost"} 
+                                        size="sm" 
+                                        onClick={() => setRecipient("admin")}
+                                        className="rounded-lg px-6"
+                                    >
+                                        System Admin
+                                    </Button>
+                                    {hasUnreadAdmin && (
+                                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full border-2 border-background shadow-[0_0_8px_rgba(var(--primary),0.5)] z-20" />
+                                    )}
+                                </div>
+                            </>
+                        );
+                    })()}
                 </div>
             </div>
 

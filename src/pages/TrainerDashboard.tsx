@@ -525,7 +525,23 @@ export default function TrainerDashboard() {
                                             className={`p-3 rounded-xl cursor-pointer hover:bg-accent/10 transition-colors flex justify-between items-center border border-dashed ${selectedChatUser?.id === 'admin' ? 'bg-accent/10 border-accent/40' : 'border-border/30'}`}
                                         >
                                             <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                                                {(() => {
+                                                    const adminTickets = tickets.filter(t => {
+                                                        const t_userId = Number(t.user_id);
+                                                        const t_trainerId = t.trainer_id ? Number(t.trainer_id) : null;
+                                                        const currentUserId = Number(user?.id);
+                                                        return t_userId === currentUserId && (t_trainerId === null || t_trainerId === 0);
+                                                    }).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                                                    
+                                                    const lastAdminMsg = adminTickets[adminTickets.length - 1];
+                                                    const hasUnreadAdmin = lastAdminMsg && Number(lastAdminMsg.sender_id) !== Number(user?.id) && lastAdminMsg.status === 'open';
+                                                    
+                                                    return hasUnreadAdmin ? (
+                                                        <div className="w-2 h-2 rounded-full bg-accent animate-pulse shadow-[0_0_8px_rgba(var(--accent),0.5)]" />
+                                                    ) : (
+                                                        <div className="w-2 h-2 rounded-full bg-accent/20" />
+                                                    );
+                                                })()}
                                                 <span className="font-bold text-sm text-accent">{t('administrator', 'trainer') || "Administrator"}</span>
                                             </div>
                                         </div>
@@ -542,7 +558,12 @@ export default function TrainerDashboard() {
                                                     className={`p-3 rounded-xl cursor-pointer hover:bg-accent/10 transition-colors flex justify-between items-center ${selectedChatUser?.id === client.id ? 'bg-primary/10 border border-primary/20' : ''}`}
                                                 >
                                                     <span className="font-semibold text-sm">{client.username}</span>
-                                                    {hasUnread && <div className="w-2 h-2 rounded-full bg-primary" />}
+                                                    {(() => {
+                                                        const sorted = [...clientTickets].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                                                        const lastMsg = sorted[sorted.length - 1];
+                                                        const hasUnread = lastMsg && Number(lastMsg.sender_id) !== Number(user?.id) && lastMsg.status === 'open';
+                                                        return hasUnread && <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" />;
+                                                    })()}
                                                 </div>
                                             );
                                         })}

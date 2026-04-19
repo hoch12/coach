@@ -571,9 +571,10 @@ const AdminPanel = () => {
                                             return latestB - latestA;
                                         })
                                         .map(uid => {
-                                            const userTickets = tickets.filter(t => t.user_id === uid);
-                                            const lastMsg = userTickets[userTickets.length - 1];
-                                            const unread = userTickets.filter(t => t.status === 'open' && t.sender_id !== Number(user?.id)).length;
+                                            const sorted = [...userTickets].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                                            const lastMsg = sorted[sorted.length - 1];
+                                            const isPendingReply = lastMsg && Number(lastMsg.sender_id) !== Number(user?.id) && lastMsg.status === 'open';
+                                            const unread = isPendingReply ? userTickets.filter(t => t.status === 'open' && t.sender_id !== Number(user?.id)).length : 0;
                                             return (
                                                 <button
                                                     key={uid}

@@ -1,6 +1,11 @@
-2.14.2
+2.14.4
 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.14.4] - 2026-04-19
+### Changed
+- **Message Notification Logic**: Notifications (badges, dots, counts) across all dashboards now only disappear when the user sends a reply. This ensures that incoming messages remain flagged as "pending attention" until explicitly responded to.
+- **Support UI**: Added active unread indicators to the Coach/Admin toggle in the client view and the Admin chat in the Trainer dashboard.
 
 ## [2.14.2] - 2026-04-17
 ### Fixed
