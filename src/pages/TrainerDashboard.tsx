@@ -522,6 +522,7 @@ export default function TrainerDashboard() {
                                         <MessageCircle className="h-4 w-4" />
                                         {t('chats', 'trainer') || "Conversations"}
                                     </div>
+                                    <div className="flex-1 overflow-y-auto w-full p-2 space-y-1">
                                         {(() => {
                                             const adminObj = { id: 'admin', username: t('systemAdmin', 'trainer') || 'System Admin', isAdmin: true };
                                             const allConvs = [adminObj, ...clients];
@@ -589,6 +590,7 @@ export default function TrainerDashboard() {
                                                     );
                                                 });
                                         })()}
+                                    </div>
                                         {clients.length === 0 && <p className="text-xs text-muted-foreground p-2 text-center opacity-50">No clients assigned.</p>}
                                     </div>
                                 </div>
