@@ -591,8 +591,7 @@ export default function TrainerDashboard() {
                                                 });
                                         })()}
                                     </div>
-                                        {clients.length === 0 && <p className="text-xs text-muted-foreground p-2 text-center opacity-50">No clients assigned.</p>}
-                                    </div>
+                                    {clients.length === 0 && <p className="text-xs text-muted-foreground p-2 text-center opacity-50">No clients assigned.</p>}
                                 </div>
                                 
                                 {/* Chat Area */}
