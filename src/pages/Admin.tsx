@@ -253,24 +253,26 @@ const AdminPanel = () => {
     return (
         <div className="min-h-screen bg-background p-6">
             <div className="max-w-4xl mx-auto space-y-6">
-                <header className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <Button variant="ghost" onClick={() => navigate("/dashboard")} className="pl-0 text-muted-foreground self-start">
+                <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <Button variant="ghost" onClick={() => navigate("/dashboard")} className="pl-0 text-muted-foreground transition-colors hover:text-foreground">
                         <ArrowLeft className="mr-2 h-4 w-4" />
-                        Back to Dashboard
+                        <span className="text-sm md:text-base">Back</span>
                     </Button>
-                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                        <div className="flex items-center gap-2 mr-2">
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                        <div className="flex items-center gap-2 bg-accent/10 px-2 py-1 rounded-lg border border-accent/20">
                             <Users className="h-4 w-4 text-accent" />
-                            <span className="font-semibold text-accent text-xs sm:text-sm hidden xs:inline">Admin Mode</span>
+                            <span className="font-bold text-accent text-[10px] uppercase tracking-wider">Admin</span>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => setIsProfileOpen(true)} className="text-muted-foreground hover:bg-secondary px-2">
-                            <User className="h-4 w-4 sm:mr-2" />
-                            <span className="hidden sm:inline">My Profile</span>
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => { logout(); navigate("/login"); }} className="text-destructive hover:bg-destructive/10 px-2 transition-colors">
-                            <LogOut className="h-4 w-4 sm:mr-2" />
-                            <span className="hidden sm:inline">{t('logout', 'common')}</span>
-                        </Button>
+                        <div className="flex items-center gap-1">
+                            <Button variant="ghost" size="sm" onClick={() => setIsProfileOpen(true)} className="text-muted-foreground hover:bg-secondary h-9 px-2">
+                                <User className="h-4 w-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Profile</span>
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => { logout(); navigate("/login"); }} className="text-destructive hover:bg-destructive/10 h-9 px-2 transition-colors">
+                                <LogOut className="h-4 w-4 sm:mr-2" />
+                                <span className="hidden sm:inline">{t('logout', 'common')}</span>
+                            </Button>
+                        </div>
                     </div>
                 </header>
 

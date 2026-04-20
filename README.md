@@ -2,17 +2,40 @@
 
 A highly personalized, aesthetic fitness and nutrition coaching platform for gyms and personal trainers.
 
-## Architecture
-The application is a full stack web application utilizing:
-- **Frontend**: Vite, React, TypeScript, Tailwind CSS, Shadcn UI, Framer Motion
-- **Backend**: Node.js, Express, `better-sqlite3`, JSON Web Tokens (JWT)
-- **Deployment**: GitHub Pages (Frontend), Render.com (Backend)
+## Tech Stack
+- **Frontend:** React, Vite, Tailwind CSS, Framer Motion
+- **Backend:** Node.js, Express
+- **Database:** PostgreSQL (Neon.tech / Render)
+- **State Management:** React Query
+- **Authentication:** JWT, bcryptjs
 
-## Production URLs
-- **Frontend**: [https://hoch12.github.io/coach/](https://hoch12.github.io/coach/)
-- **Backend**: `https://coach-3iwd.onrender.com`
+## Local Setup
 
-## Getting Started
+1. **Clone the repository**
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+3. **Environment Setup:**
+   Create a `.env` file in the root directory:
+   ```env
+   PORT=3000
+   SECRET_KEY=your_secret_key
+   DATABASE_URL=your_postgresql_connection_string
+   ```
+4. **Run the application:**
+   ```bash
+   npm run dev
+   ```
+
+## Production Deployment (Render)
+
+1. Connect your GitHub repository to Render.
+2. Create a **Web Service** for the backend.
+3. Add the following **Environment Variables** in Render Dashboard:
+   - `DATABASE_URL`: Your PostgreSQL connection string (from Neon.tech or Render DB).
+   - `SECRET_KEY`: A strong secret for JWT.
+4. The backend will automatically initialize the database schema on startup.
 
 ### Prerequisites
 Make sure you have Node.js (v18+) installed.

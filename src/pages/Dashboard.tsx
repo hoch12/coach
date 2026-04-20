@@ -264,23 +264,23 @@ const Dashboard = () => {
           </div>
 
           {/* Mobile nav */}
-          <div className="flex md:hidden items-center justify-between gap-2 px-6 py-2 border-t border-border/10 bg-secondary/10">
-            <div className="flex gap-1 overflow-x-auto no-scrollbar py-1">
+          <div className="flex md:hidden items-center justify-between px-6 py-2 border-t border-border/10 bg-secondary/5">
+            <div className="flex gap-1 overflow-x-auto no-scrollbar py-1 flex-1">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`p-2 rounded-lg transition-colors flex-shrink-0 ${activeTab === item.id
+                  className={`px-3 py-1.5 rounded-lg transition-colors flex-shrink-0 flex items-center gap-2 text-xs font-medium ${activeTab === item.id
                     ? "bg-primary/20 text-primary border border-primary/30"
-                    : "text-muted-foreground"
+                    : "text-muted-foreground hover:bg-secondary/50"
                     }`}
-                  title={item.label}
                 >
-                  <item.icon className="h-5 w-5" />
+                  <item.icon className="h-4 w-4" />
+                  {activeTab === item.id && item.label}
                 </button>
               ))}
             </div>
-            <div className="flex items-center gap-1 border-l border-border/20 pl-2">
+            <div className="flex items-center gap-1 border-l border-border/20 pl-2 ml-2">
               <button
                 onClick={() => navigate("/profile")}
                 className="p-2 rounded-lg text-muted-foreground hover:text-primary transition-colors"
@@ -298,10 +298,10 @@ const Dashboard = () => {
             </div>
           </div>
         </header>
-
+        
         {/* Quick stats */}
         {plan && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-6 pt-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-6 pt-6">
             <QuickStat icon={Flame} label={t('calories', 'dashboard')} value={plan?.nutrition?.calories ? `${plan.nutrition.calories}` : "-"} unit="kcal" />
             <QuickStat icon={TrendingUp} label={t('protein', 'dashboard')} value={plan?.nutrition?.protein ? `${plan.nutrition.protein}` : "-"} unit="g" />
             <QuickStat icon={Dumbbell} label={t('trainingDays', 'dashboard')} value={plan?.trainingSplit?.length ? `${plan.trainingSplit.length}` : "-"} unit={t('perWeek', 'dashboard')} />

@@ -27,7 +27,8 @@ const translations: Record<Language, Record<string, Record<string, string>>> = {
       clientDetails: "Client Details",
       clientDetailsDesc: "Personalized fitness data and program",
       profileInfo: "Profile Information",
-      none: "None"
+      none: "None",
+      backToHome: "Back to Home"
     },
     sidebar: {
       training: "Training",
@@ -431,7 +432,8 @@ const translations: Record<Language, Record<string, Record<string, string>>> = {
       clientDetails: "Detaily Klienta",
       clientDetailsDesc: "Personalizovaná fitness data a program",
       profileInfo: "Informace o Profilu",
-      none: "Žádná"
+      none: "Žádná",
+      backToHome: "Zpět na hlavní stránku"
     },
     sidebar: {
       training: "Trénink",

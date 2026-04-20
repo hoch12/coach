@@ -3,6 +3,9 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import db from './db.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,17 +39,16 @@ const isTrainer = (req, res, next) => {
 };
 
 // --- Auth Routes ---
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
     const { username, password, role = 'user' } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
     try {
         const hashedPassword = bcrypt.hashSync(password, 10);
-        const stmt = db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)');
-        const info = stmt.run(username, hashedPassword, role);
-        res.status(201).json({ id: info.lastInsertRowid, username, role });
+        const result = await db.query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3) RETURNING id', [username, hashedPassword, role]);
+        res.status(201).json({ id: result.rows[0].id, username, role });
     } catch (error) {
-        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || (error.message && error.message.includes('UNIQUE constraint'))) {
+        if (error.code === '23505') { // Postgres UNIQUE constraint error code
             res.status(400).json({ error: 'Username already exists' });
         } else {
             console.error(error);
@@ -55,10 +57,10 @@ app.post('/api/auth/register', (req, res) => {
     }
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     const { username, password } = req.body;
-    const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
-    const user = stmt.get(username);
+    const result = await db.query('SELECT * FROM users WHERE username = $1', [username]);
+    const user = result.rows[0];
 
     if (!user || !bcrypt.compareSync(password, user.password)) {
         return res.status(401).json({ error: 'Invalid credentials' });
@@ -68,9 +70,9 @@ app.post('/api/auth/login', (req, res) => {
     res.json({ token, user: { id: user.id, username: user.username, role: user.role, trainer_id: user.trainer_id, profile_image: user.profile_image, language: user.language } });
 });
 
-app.get('/api/auth/me', authenticateToken, (req, res) => {
-    const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
-    const user = stmt.get(req.user.id);
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
+    const result = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = result.rows[0];
     if (user) {
         delete user.password;
         res.json({ user });
@@ -79,41 +81,43 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
     }
 });
 
-app.post('/api/auth/change-password', authenticateToken, (req, res) => {
+app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
     const { oldPassword, newPassword } = req.body;
-    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+    const userResult = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = userResult.rows[0];
 
     if (!bcrypt.compareSync(oldPassword, user.password)) {
         return res.status(401).json({ error: 'Incorrect current password' });
     }
 
     const hashedNewPassword = bcrypt.hashSync(newPassword, 10);
-    db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedNewPassword, req.user.id);
+    await db.query('UPDATE users SET password = $1 WHERE id = $2', [hashedNewPassword, req.user.id]);
     res.json({ success: true });
 });
 
-app.put('/api/user/settings', authenticateToken, (req, res) => {
+app.put('/api/user/settings', authenticateToken, async (req, res) => {
     const { username, profile_image, language } = req.body;
 
     try {
         if (username) {
             // Check if username taken by someone else
-            const existing = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.user.id);
-            if (existing) {
+            const existing = await db.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username, req.user.id]);
+            if (existing.rowCount > 0) {
                 return res.status(400).json({ error: 'Username already taken' });
             }
-            db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, req.user.id);
+            await db.query('UPDATE users SET username = $1 WHERE id = $2', [username, req.user.id]);
         }
 
         if (profile_image !== undefined) {
-            db.prepare('UPDATE users SET profile_image = ? WHERE id = ?').run(profile_image, req.user.id);
+            await db.query('UPDATE users SET profile_image = $1 WHERE id = $2', [profile_image, req.user.id]);
         }
 
         if (language !== undefined) {
-            db.prepare('UPDATE users SET language = ? WHERE id = ?').run(language, req.user.id);
+            await db.query('UPDATE users SET language = $1 WHERE id = $2', [language, req.user.id]);
         }
 
-        const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+        const updatedResult = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+        const updatedUser = updatedResult.rows[0];
         if (updatedUser) delete updatedUser.password;
         res.json({ success: true, user: updatedUser });
     } catch (e) {
@@ -123,9 +127,9 @@ app.put('/api/user/settings', authenticateToken, (req, res) => {
 });
 
 // --- Profile Routes ---
-app.get('/api/profile', authenticateToken, (req, res) => {
-    const stmt = db.prepare('SELECT * FROM profiles WHERE user_id = ?');
-    const profile = stmt.get(req.user.id);
+app.get('/api/profile', authenticateToken, async (req, res) => {
+    const result = await db.query('SELECT * FROM profiles WHERE user_id = $1', [req.user.id]);
+    const profile = result.rows[0];
 
     if (profile && profile.profile_data) {
         res.json(JSON.parse(profile.profile_data));
@@ -136,7 +140,7 @@ app.get('/api/profile', authenticateToken, (req, res) => {
     }
 });
 
-app.post('/api/profile', authenticateToken, (req, res) => {
+app.post('/api/profile', authenticateToken, async (req, res) => {
     try {
         let targetUserId = req.user.id;
 
@@ -145,7 +149,8 @@ app.post('/api/profile', authenticateToken, (req, res) => {
             if (req.user.role === 'admin') {
                 targetUserId = req.body.userId;
             } else if (req.user.role === 'trainer') {
-                const checkClient = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(req.body.userId);
+                const checkClientResult = await db.query('SELECT trainer_id FROM users WHERE id = $1', [req.body.userId]);
+                const checkClient = checkClientResult.rows[0];
                 if (checkClient && checkClient.trainer_id === req.user.id) {
                     targetUserId = req.body.userId;
                 } else {
@@ -156,22 +161,20 @@ app.post('/api/profile', authenticateToken, (req, res) => {
             }
         }
 
-        const stmt = db.prepare(`
+        await db.query(`
         INSERT INTO profiles (user_id, age, weight, height, gender, profile_data)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES ($1, $2, $3, $4, $5, $6)
         ON CONFLICT(user_id) DO UPDATE SET 
-          age=excluded.age, weight=excluded.weight, height=excluded.height, 
-          gender=excluded.gender, profile_data=excluded.profile_data
-      `);
-
-        stmt.run(
+          age=EXCLUDED.age, weight=EXCLUDED.weight, height=EXCLUDED.height, 
+          gender=EXCLUDED.gender, profile_data=EXCLUDED.profile_data
+      `, [
             targetUserId,
             req.body.age || null,
             req.body.weight || null,
             req.body.height || null,
             req.body.gender || null,
             JSON.stringify(req.body)
-        );
+        ]);
         res.json({ success: true });
     } catch (e) {
         console.error("Profile save error:", e);
@@ -180,13 +183,13 @@ app.post('/api/profile', authenticateToken, (req, res) => {
 });
 
 // --- Plan Routes ---
-app.get('/api/plan', authenticateToken, (req, res) => {
-    const stmt = db.prepare('SELECT * FROM plans WHERE user_id = ?');
-    const plan = stmt.get(req.user.id);
+app.get('/api/plan', authenticateToken, async (req, res) => {
+    const result = await db.query('SELECT * FROM plans WHERE user_id = $1', [req.user.id]);
+    const plan = result.rows[0];
     res.json(plan || null);
 });
 
-app.post('/api/plan', authenticateToken, (req, res) => {
+app.post('/api/plan', authenticateToken, async (req, res) => {
     const { plan_data, userId } = req.body;
     let targetUserId = req.user.id;
 
@@ -194,7 +197,8 @@ app.post('/api/plan', authenticateToken, (req, res) => {
         if (req.user.role === 'admin') {
             targetUserId = userId;
         } else if (req.user.role === 'trainer') {
-            const checkClient = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(userId);
+            const checkClientResult = await db.query('SELECT trainer_id FROM users WHERE id = $1', [userId]);
+            const checkClient = checkClientResult.rows[0];
             if (checkClient && checkClient.trainer_id === req.user.id) {
                 targetUserId = userId;
             } else {
@@ -205,52 +209,49 @@ app.post('/api/plan', authenticateToken, (req, res) => {
         }
     }
 
-    const stmt = db.prepare(`
-    INSERT INTO plans (user_id, plan_data) VALUES (?, ?)
-    ON CONFLICT(user_id) DO UPDATE SET plan_data=excluded.plan_data
-  `);
-    stmt.run(targetUserId, JSON.stringify(plan_data));
+    await db.query(`
+    INSERT INTO plans (user_id, plan_data) VALUES ($1, $2)
+    ON CONFLICT(user_id) DO UPDATE SET plan_data=EXCLUDED.plan_data
+  `, [targetUserId, JSON.stringify(plan_data)]);
     res.json({ success: true });
 });
 
 // --- Admin Routes ---
-app.get('/api/admin/users', authenticateToken, isAdmin, (req, res) => {
-    const stmt = db.prepare('SELECT * FROM users');
-    const users = stmt.all().map(u => { delete u.password; return u; });
+app.get('/api/admin/users', authenticateToken, isAdmin, async (req, res) => {
+    const result = await db.query('SELECT * FROM users');
+    const users = result.rows.map(u => { delete u.password; return u; });
     res.json(users);
 });
 
-app.delete('/api/admin/users/:id', authenticateToken, isAdmin, (req, res) => {
-    const stmt = db.prepare('DELETE FROM users WHERE id = ?');
-    stmt.run(req.params.id);
+app.delete('/api/admin/users/:id', authenticateToken, isAdmin, async (req, res) => {
+    await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
     res.json({ success: true });
 });
 
-app.post('/api/admin/create-trainer', authenticateToken, isAdmin, (req, res) => {
+app.post('/api/admin/create-trainer', authenticateToken, isAdmin, async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
     try {
         const hashedPassword = bcrypt.hashSync(password, 10);
-        const stmt = db.prepare("INSERT INTO users (username, password, role) VALUES (?, ?, 'trainer')");
-        const info = stmt.run(username, hashedPassword);
-        res.status(201).json({ id: info.lastInsertRowid, username, role: 'trainer' });
+        const result = await db.query("INSERT INTO users (username, password, role) VALUES ($1, $2, 'trainer') RETURNING id", [username, hashedPassword]);
+        res.status(201).json({ id: result.rows[0].id, username, role: 'trainer' });
     } catch (error) {
         res.status(400).json({ error: 'Username already exists' });
     }
 });
 
-app.get('/api/admin/users/:id/profile', authenticateToken, isTrainer, (req, res) => {
-    const userStmt = db.prepare('SELECT trainer_id FROM users WHERE id = ?');
-    const u = userStmt.get(req.params.id);
+app.get('/api/admin/users/:id/profile', authenticateToken, isTrainer, async (req, res) => {
+    const userResult = await db.query('SELECT trainer_id FROM users WHERE id = $1', [req.params.id]);
+    const u = userResult.rows[0];
 
     // Authorization check: Admin can see anyone, Trainer can only see their own clients
     if (req.user.role !== 'admin' && u?.trainer_id !== req.user.id) {
         return res.sendStatus(403);
     }
 
-    const stmt = db.prepare('SELECT * FROM profiles WHERE user_id = ?');
-    const profile = stmt.get(req.params.id);
+    const result = await db.query('SELECT * FROM profiles WHERE user_id = $1', [req.params.id]);
+    const profile = result.rows[0];
 
     if (profile && profile.profile_data) {
         res.json(JSON.parse(profile.profile_data));
@@ -261,41 +262,40 @@ app.get('/api/admin/users/:id/profile', authenticateToken, isTrainer, (req, res)
     }
 });
 
-app.get('/api/admin/users/:id/plan', authenticateToken, isTrainer, (req, res) => {
-    const userStmt = db.prepare('SELECT trainer_id FROM users WHERE id = ?');
-    const u = userStmt.get(req.params.id);
+app.get('/api/admin/users/:id/plan', authenticateToken, isTrainer, async (req, res) => {
+    const userResult = await db.query('SELECT trainer_id FROM users WHERE id = $1', [req.params.id]);
+    const u = userResult.rows[0];
 
     // Authorization check
     if (req.user.role !== 'admin' && u?.trainer_id !== req.user.id) {
         return res.sendStatus(403);
     }
 
-    const stmt = db.prepare('SELECT * FROM plans WHERE user_id = ?');
-    const plan = stmt.get(req.params.id);
+    const result = await db.query('SELECT * FROM plans WHERE user_id = $1', [req.params.id]);
+    const plan = result.rows[0];
     res.json(plan || null);
 });
 
 // --- Admin/Trainer/Client Management ---
-app.get('/api/admin/trainers', authenticateToken, isAdmin, (req, res) => {
-    const stmt = db.prepare("SELECT * FROM users WHERE role = 'trainer'");
-    const trainers = stmt.all().map(u => { delete u.password; return u; });
+app.get('/api/admin/trainers', authenticateToken, isAdmin, async (req, res) => {
+    const result = await db.query("SELECT * FROM users WHERE role = 'trainer'");
+    const trainers = result.rows.map(u => { delete u.password; return u; });
     res.json(trainers);
 });
 
-app.post('/api/admin/assign-trainer', authenticateToken, isAdmin, (req, res) => {
+app.post('/api/admin/assign-trainer', authenticateToken, isAdmin, async (req, res) => {
     const { userId, trainerId } = req.body;
-    const stmt = db.prepare('UPDATE users SET trainer_id = ? WHERE id = ?');
-    stmt.run(trainerId, userId);
+    await db.query('UPDATE users SET trainer_id = $1 WHERE id = $2', [trainerId, userId]);
     res.json({ success: true });
 });
 
-app.get('/api/trainer/clients', authenticateToken, isTrainer, (req, res) => {
-    const stmt = db.prepare('SELECT id, username, profile_image FROM users WHERE trainer_id = ?');
-    res.json(stmt.all(req.user.id));
+app.get('/api/trainer/clients', authenticateToken, isTrainer, async (req, res) => {
+    const result = await db.query('SELECT id, username, profile_image FROM users WHERE trainer_id = $1', [req.user.id]);
+    res.json(result.rows);
 });
 
 // --- Support / Chat Routes ---
-app.get('/api/support', authenticateToken, (req, res) => {
+app.get('/api/support', authenticateToken, async (req, res) => {
     let query, params;
     if (req.user.role === 'admin') {
         return res.redirect('/api/admin/support');
@@ -307,7 +307,7 @@ app.get('/api/support', authenticateToken, (req, res) => {
                    u.username 
             FROM support_tickets s 
             LEFT JOIN users u ON s.user_id = u.id 
-            WHERE s.user_id = ? OR s.trainer_id = ?
+            WHERE s.user_id = $1 OR s.trainer_id = $2
             ORDER BY s.created_at ASC
         `;
         params = [req.user.id, req.user.id];
@@ -315,18 +315,18 @@ app.get('/api/support', authenticateToken, (req, res) => {
         query = `
             SELECT s.*, u.username FROM support_tickets s 
             LEFT JOIN users u ON s.user_id = u.id
-            WHERE s.user_id = ? 
+            WHERE s.user_id = $1 
             ORDER BY s.created_at ASC
         `;
         params = [req.user.id];
     }
 
-    const stmt = db.prepare(query);
-    res.json(stmt.all(...params));
+    const result = await db.query(query, params);
+    res.json(result.rows);
 });
 
-app.get('/api/admin/support', authenticateToken, isAdmin, (req, res) => {
-    const stmt = db.prepare(`
+app.get('/api/admin/support', authenticateToken, isAdmin, async (req, res) => {
+    const result = await db.query(`
         SELECT 
             s.id, s.user_id, s.trainer_id, s.message, s.status, s.created_at, s.sender_id,
             u.username, u.role as user_role
@@ -335,171 +335,165 @@ app.get('/api/admin/support', authenticateToken, isAdmin, (req, res) => {
         WHERE s.trainer_id IS NULL OR s.trainer_id = 0
         ORDER BY s.created_at ASC
     `);
-    res.json(stmt.all());
+    res.json(result.rows);
 });
 
-app.post('/api/support', authenticateToken, (req, res) => {
+app.post('/api/support', authenticateToken, async (req, res) => {
     const { message, target } = req.body;
     if (!message) return res.status(400).json({ error: 'Message is required' });
 
     let trainerId = null;
     if (target !== 'admin') {
-        const userStmt = db.prepare('SELECT trainer_id FROM users WHERE id = ?');
-        const user = userStmt.get(req.user.id);
+        const userResult = await db.query('SELECT trainer_id FROM users WHERE id = $1', [req.user.id]);
+        const user = userResult.rows[0];
         trainerId = user?.trainer_id || null;
     }
 
-    const stmt = db.prepare('INSERT INTO support_tickets (user_id, trainer_id, message, sender_id) VALUES (?, ?, ?, ?)');
-    const info = stmt.run(req.user.id, trainerId, message, req.user.id);
+    const result = await db.query('INSERT INTO support_tickets (user_id, trainer_id, message, sender_id) VALUES ($1, $2, $3, $4) RETURNING id', [req.user.id, trainerId, message, req.user.id]);
 
     res.json({
         success: true,
-        id: info.lastInsertRowid,
+        id: result.rows[0].id,
         recipient: trainerId ? 'trainer' : 'admin'
     });
 });
 
-app.post('/api/support/trainer-initiate', authenticateToken, isTrainer, (req, res) => {
+app.post('/api/support/trainer-initiate', authenticateToken, isTrainer, async (req, res) => {
     const { clientId, message } = req.body;
     if (!clientId || !message) return res.status(400).json({ error: 'Client ID and message required' });
 
-    const clientStmt = db.prepare('SELECT trainer_id FROM users WHERE id = ?');
-    const client = clientStmt.get(clientId);
+    const clientResult = await db.query('SELECT trainer_id FROM users WHERE id = $1', [clientId]);
+    const client = clientResult.rows[0];
     
     if (!client || client.trainer_id !== req.user.id) {
         return res.status(403).json({ error: 'Not authorized to message this client' });
     }
 
-    const stmt = db.prepare(`
+    const result = await db.query(`
         INSERT INTO support_tickets (user_id, trainer_id, message, sender_id, status) 
-        VALUES (?, ?, ?, ?, 'open')
-    `);
-    const info = stmt.run(clientId, req.user.id, message, req.user.id);
+        VALUES ($1, $2, $3, $4, 'open')
+        RETURNING id
+    `, [clientId, req.user.id, message, req.user.id]);
 
-    res.json({ success: true, id: info.lastInsertRowid });
+    res.json({ success: true, id: result.rows[0].id });
 });
 
-app.post('/api/support/:id/reply', authenticateToken, (req, res) => {
+app.post('/api/support/:id/reply', authenticateToken, async (req, res) => {
     const { reply } = req.body;
     const ticketId = req.params.id;
 
     if (!reply) return res.status(400).json({ error: 'Reply is required' });
 
-    const ticketStmt = db.prepare('SELECT * FROM support_tickets WHERE id = ?');
-    const ticket = ticketStmt.get(ticketId);
+    const ticketResult = await db.query('SELECT * FROM support_tickets WHERE id = $1', [ticketId]);
+    const ticket = ticketResult.rows[0];
 
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
     // Multi-message logic: Insert a NEW record instead of updating the old one
-    const stmt = db.prepare(`
+    const result = await db.query(`
         INSERT INTO support_tickets (user_id, trainer_id, message, sender_id, status)
-        VALUES (?, ?, ?, ?, 'open')
-    `);
-    
-    // Maintain the thread context (user_id and trainer_id)
-    const info = stmt.run(ticket.user_id, ticket.trainer_id, reply, req.user.id);
+        VALUES ($1, $2, $3, $4, 'open')
+        RETURNING id
+    `, [ticket.user_id, ticket.trainer_id, reply, req.user.id]);
 
-    res.json({ success: true, id: info.lastInsertRowid });
+    res.json({ success: true, id: result.rows[0].id });
 });
 
-app.post('/api/admin/support/:id/reply', authenticateToken, isAdmin, (req, res) => {
+app.post('/api/admin/support/:id/reply', authenticateToken, isAdmin, async (req, res) => {
     const { reply } = req.body;
     const ticketId = req.params.id;
 
     if (!reply) return res.status(400).json({ error: 'Reply is required' });
 
-    const ticketStmt = db.prepare('SELECT * FROM support_tickets WHERE id = ?');
-    const ticket = ticketStmt.get(ticketId);
+    const ticketResult = await db.query('SELECT * FROM support_tickets WHERE id = $1', [ticketId]);
+    const ticket = ticketResult.rows[0];
 
     if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
-    const stmt = db.prepare(`
+    const result = await db.query(`
         INSERT INTO support_tickets (user_id, trainer_id, message, sender_id, status)
-        VALUES (?, ?, ?, ?, 'open')
-    `);
+        VALUES ($1, $2, $3, $4, 'open')
+        RETURNING id
+    `, [ticket.user_id, ticket.trainer_id, reply, req.user.id]);
     
-    const info = stmt.run(ticket.user_id, ticket.trainer_id, reply, req.user.id);
-    res.json({ success: true, id: info.lastInsertRowid });
+    res.json({ success: true, id: result.rows[0].id });
 });
 
 // --- Booking Routes ---
-app.get('/api/bookings', authenticateToken, (req, res) => {
-    let stmt;
+app.get('/api/bookings', authenticateToken, async (req, res) => {
+    let result;
     if (req.user.role === 'trainer') {
-        stmt = db.prepare(`
+        result = await db.query(`
             SELECT b.*, u.username as client_name 
             FROM bookings b 
             JOIN users u ON b.client_id = u.id 
-            WHERE b.trainer_id = ? 
+            WHERE b.trainer_id = $1 
             ORDER BY b.start_time ASC
-        `);
-        res.json(stmt.all(req.user.id));
+        `, [req.user.id]);
+        res.json(result.rows);
     } else {
-        stmt = db.prepare(`
+        result = await db.query(`
             SELECT b.*, u.username as trainer_name 
             FROM bookings b 
             JOIN users u ON b.trainer_id = u.id 
-            WHERE b.client_id = ? 
+            WHERE b.client_id = $1 
             ORDER BY b.start_time ASC
-        `);
-        res.json(stmt.all(req.user.id));
+        `, [req.user.id]);
+        res.json(result.rows);
     }
 });
 
-app.get('/api/bookings/trainer/:id', authenticateToken, (req, res) => {
-    const stmt = db.prepare("SELECT start_time, duration_minutes FROM bookings WHERE trainer_id = ? AND status NOT IN ('cancelled', 'declined')");
-    res.json(stmt.all(req.params.id));
+app.get('/api/bookings/trainer/:id', authenticateToken, async (req, res) => {
+    const result = await db.query("SELECT start_time, duration_minutes FROM bookings WHERE trainer_id = $1 AND status NOT IN ('cancelled', 'declined')", [req.params.id]);
+    res.json(result.rows);
 });
 
-app.post('/api/bookings', authenticateToken, (req, res) => {
+app.post('/api/bookings', authenticateToken, async (req, res) => {
     const { trainerId, startTime, durationMinutes = 60, clientId } = req.body;
 
     const finalClientId = req.user.role === 'trainer' ? (clientId || req.user.id) : req.user.id;
 
     // Basic double-booking check (very simple for now)
-    const existing = db.prepare(`
+    const existingResult = await db.query(`
         SELECT * FROM bookings 
-        WHERE trainer_id = ? 
+        WHERE trainer_id = $1 
         AND status NOT IN ('cancelled', 'declined')
         AND (
-            (start_time <= ? AND datetime(start_time, '+' || duration_minutes || ' minutes') > ?)
+            (start_time <= $2 AND (start_time + (duration_minutes || ' minutes')::interval) > $3)
         )
-    `).get(trainerId, startTime, startTime);
+    `, [trainerId, startTime, startTime]);
+    const existing = existingResult.rows[0];
 
     if (existing) {
         return res.status(400).json({ error: 'Trainer is already booked at this time' });
     }
 
     const status = req.user.role === 'trainer' ? 'scheduled' : 'pending';
-    const stmt = db.prepare('INSERT INTO bookings (trainer_id, client_id, start_time, duration_minutes, status) VALUES (?, ?, ?, ?, ?)');
-    const info = stmt.run(trainerId, finalClientId, startTime, durationMinutes, status);
-    res.json({ success: true, id: info.lastInsertRowid, status });
+    const result = await db.query('INSERT INTO bookings (trainer_id, client_id, start_time, duration_minutes, status) VALUES ($1, $2, $3, $4, $5) RETURNING id', [trainerId, finalClientId, startTime, durationMinutes, status]);
+    res.json({ success: true, id: result.rows[0].id, status });
 });
 
-app.post('/api/bookings/:id/accept', authenticateToken, isTrainer, (req, res) => {
-    const stmt = db.prepare("UPDATE bookings SET status = 'scheduled' WHERE id = ? AND trainer_id = ?");
-    const info = stmt.run(req.params.id, req.user.id);
-    if (info.changes > 0) {
+app.post('/api/bookings/:id/accept', authenticateToken, isTrainer, async (req, res) => {
+    const result = await db.query("UPDATE bookings SET status = 'scheduled' WHERE id = $1 AND trainer_id = $2", [req.params.id, req.user.id]);
+    if (result.rowCount > 0) {
         res.json({ success: true });
     } else {
         res.status(404).json({ error: 'Booking not found or unauthorized' });
     }
 });
 
-app.post('/api/bookings/:id/decline', authenticateToken, isTrainer, (req, res) => {
-    const stmt = db.prepare("UPDATE bookings SET status = 'declined' WHERE id = ? AND trainer_id = ?"); // Use declined instead of cancelled so client knows why
-    const info = stmt.run(req.params.id, req.user.id);
-    if (info.changes > 0) {
+app.post('/api/bookings/:id/decline', authenticateToken, isTrainer, async (req, res) => {
+    const result = await db.query("UPDATE bookings SET status = 'declined' WHERE id = $1 AND trainer_id = $2", [req.params.id, req.user.id]);
+    if (result.rowCount > 0) {
         res.json({ success: true });
     } else {
         res.status(404).json({ error: 'Booking not found or unauthorized' });
     }
 });
 
-app.post('/api/bookings/:id/cancel', authenticateToken, (req, res) => {
-    const stmt = db.prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ? AND (client_id = ? OR trainer_id = ?)");
-    const info = stmt.run(req.params.id, req.user.id, req.user.id);
-    if (info.changes > 0) {
+app.post('/api/bookings/:id/cancel', authenticateToken, async (req, res) => {
+    const result = await db.query("UPDATE bookings SET status = 'cancelled' WHERE id = $1 AND (client_id = $2 OR trainer_id = $3)", [req.params.id, req.user.id, req.user.id]);
+    if (result.rowCount > 0) {
         res.json({ success: true });
     } else {
         res.status(404).json({ error: 'Booking not found or unauthorized' });
@@ -507,84 +501,89 @@ app.post('/api/bookings/:id/cancel', authenticateToken, (req, res) => {
 });
 
 // --- Tracking Logs Routes ---
-app.get('/api/logs/workout', authenticateToken, (req, res) => {
+app.get('/api/logs/workout', authenticateToken, async (req, res) => {
     const { date } = req.query;
-    let stmt;
+    let result;
     if (date) {
-        stmt = db.prepare('SELECT * FROM workout_logs WHERE user_id = ? AND date = ? ORDER BY id DESC');
-        res.json(stmt.all(req.user.id, date));
+        result = await db.query('SELECT * FROM workout_logs WHERE user_id = $1 AND date = $2 ORDER BY id DESC', [req.user.id, date]);
     } else {
-        stmt = db.prepare('SELECT * FROM workout_logs WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT 50');
-        res.json(stmt.all(req.user.id));
+        result = await db.query('SELECT * FROM workout_logs WHERE user_id = $1 ORDER BY date DESC, id DESC LIMIT 50', [req.user.id]);
     }
+    res.json(result.rows);
 });
 
-app.post('/api/logs/workout', authenticateToken, (req, res) => {
+app.post('/api/logs/workout', authenticateToken, async (req, res) => {
     const { date, exercise, sets, reps, weight } = req.body;
-    const stmt = db.prepare('INSERT INTO workout_logs (user_id, date, exercise, sets, reps, weight) VALUES (?, ?, ?, ?, ?, ?)');
-    const info = stmt.run(req.user.id, date, exercise, sets, reps, weight);
-    res.json({ success: true, id: info.lastInsertRowid });
+    const result = await db.query('INSERT INTO workout_logs (user_id, date, exercise, sets, reps, weight) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [req.user.id, date, exercise, sets, reps, weight]);
+    res.json({ success: true, id: result.rows[0].id });
 });
 
 // --- Trainer-Client Progress Access ---
-app.get('/api/trainer/client/:id/logs/workout', authenticateToken, isTrainer, (req, res) => {
+app.get('/api/trainer/client/:id/logs/workout', authenticateToken, isTrainer, async (req, res) => {
     const clientId = req.params.id;
     // Check if client belongs to trainer
-    const client = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(clientId);
+    const clientResult = await db.query('SELECT trainer_id FROM users WHERE id = $1', [clientId]);
+    const client = clientResult.rows[0];
     if (!client || client.trainer_id !== req.user.id) {
         return res.status(403).json({ error: 'Unauthorized access to client data' });
     }
 
-    const stmt = db.prepare('SELECT * FROM workout_logs WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT 50');
-    res.json(stmt.all(clientId));
+    const result = await db.query('SELECT * FROM workout_logs WHERE user_id = $1 ORDER BY date DESC, id DESC LIMIT 50', [clientId]);
+    res.json(result.rows);
 });
 
-app.get('/api/trainer/client/:id/logs/nutrition', authenticateToken, isTrainer, (req, res) => {
+app.get('/api/trainer/client/:id/logs/nutrition', authenticateToken, isTrainer, async (req, res) => {
     const clientId = req.params.id;
     // Check if client belongs to trainer
-    const client = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(clientId);
+    const clientResult = await db.query('SELECT trainer_id FROM users WHERE id = $1', [clientId]);
+    const client = clientResult.rows[0];
     if (!client || client.trainer_id !== req.user.id) {
         return res.status(403).json({ error: 'Unauthorized access to client data' });
     }
 
-    const stmt = db.prepare('SELECT * FROM nutrition_logs WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT 50');
-    res.json(stmt.all(clientId));
+    const result = await db.query('SELECT * FROM nutrition_logs WHERE user_id = $1 ORDER BY date DESC, id DESC LIMIT 50', [clientId]);
+    res.json(result.rows);
 });
 
-app.get('/api/trainer/client/:id/logs/daily', authenticateToken, isTrainer, (req, res) => {
+app.get('/api/trainer/client/:id/logs/daily', authenticateToken, isTrainer, async (req, res) => {
     const clientId = req.params.id;
     // Check if client belongs to trainer
-    const client = db.prepare('SELECT trainer_id FROM users WHERE id = ?').get(clientId);
+    const clientResult = await db.query('SELECT trainer_id FROM users WHERE id = $1', [clientId]);
+    const client = clientResult.rows[0];
     if (!client || client.trainer_id !== req.user.id) {
         return res.status(403).json({ error: 'Unauthorized access to client data' });
     }
 
-    const stmt = db.prepare('SELECT * FROM daily_tracking WHERE user_id = ? ORDER BY date DESC LIMIT 30');
-    res.json(stmt.all(clientId));
+    const result = await db.query('SELECT * FROM daily_tracking WHERE user_id = $1 ORDER BY date DESC LIMIT 30', [clientId]);
+    res.json(result.rows);
 });
 
-app.get('/api/logs/nutrition', authenticateToken, (req, res) => {
+app.get('/api/logs/nutrition', authenticateToken, async (req, res) => {
     const { date } = req.query;
-    let stmt;
+    let result;
     if (date) {
-        stmt = db.prepare('SELECT * FROM nutrition_logs WHERE user_id = ? AND date = ?');
-        res.json(stmt.get(req.user.id, date) || null);
+        result = await db.query('SELECT * FROM nutrition_logs WHERE user_id = $1 AND date = $2', [req.user.id, date]);
+        res.json(result.rows[0] || null);
     } else {
-        stmt = db.prepare('SELECT * FROM nutrition_logs WHERE user_id = ? ORDER BY date DESC LIMIT 30');
-        res.json(stmt.all(req.user.id));
+        result = await db.query('SELECT * FROM nutrition_logs WHERE user_id = $1 ORDER BY date DESC LIMIT 30', [req.user.id]);
+        res.json(result.rows);
     }
 });
 
-app.post('/api/logs/nutrition', authenticateToken, (req, res) => {
+app.post('/api/logs/nutrition', authenticateToken, async (req, res) => {
     const { date, calories, protein, carbs, fat } = req.body;
     // We only want ONE nutrition log per day per user. Delete old if exists.
-    db.prepare('DELETE FROM nutrition_logs WHERE user_id = ? AND date = ?').run(req.user.id, date);
+    await db.query('DELETE FROM nutrition_logs WHERE user_id = $1 AND date = $2', [req.user.id, date]);
 
-    const stmt = db.prepare('INSERT INTO nutrition_logs (user_id, date, calories, protein, carbs, fat) VALUES (?, ?, ?, ?, ?, ?)');
-    stmt.run(req.user.id, date, calories, protein || 0, carbs || 0, fat || 0);
+    await db.query('INSERT INTO nutrition_logs (user_id, date, calories, protein, carbs, fat) VALUES ($1, $2, $3, $4, $5, $6)', [req.user.id, date, calories, protein || 0, carbs || 0, fat || 0]);
     res.json({ success: true });
 });
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+db.initDb().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}).catch(err => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
 });

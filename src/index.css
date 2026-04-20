@@ -88,7 +88,20 @@
   }
 
   .section-padding {
-    @apply px-6 py-16 md:px-12 lg:px-20 lg:py-24;
+    @apply px-4 py-12 md:px-12 lg:px-20 lg:py-24;
+  }
+
+  .mobile-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .animate-bounce-soft {
+    animation: bounce-soft 3s infinite;
+  }
+
+  @keyframes bounce-soft {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
   }
 
   .no-scrollbar::-webkit-scrollbar {

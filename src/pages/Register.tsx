@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { useNavigate, Link, Navigate } from "react-router-dom";
-import { Dumbbell } from "lucide-react";
+import { Dumbbell, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { getApiUrl } from "@/lib/utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Register = () => {
     const [username, setUsername] = useState("");
@@ -15,6 +16,7 @@ const Register = () => {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const { login, user } = useAuth();
+    const { t } = useLanguage();
     const navigate = useNavigate();
 
     if (user) {
@@ -64,8 +66,18 @@ const Register = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-background p-4">
-            <Card className="w-full max-w-md shadow-2xl animate-fade-in border-accent/20 bg-card/80 backdrop-blur-sm">
+        <div className="min-h-screen flex items-center justify-center bg-background p-4 relative overflow-hidden">
+            <div className="absolute top-4 left-4 md:top-8 md:left-8 z-50">
+                <Button 
+                    variant="ghost" 
+                    onClick={() => navigate("/")} 
+                    className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-2 group backdrop-blur-sm md:backdrop-blur-none"
+                >
+                    <ChevronLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+                    <span className="text-sm md:text-base">{t('backToHome', 'common')}</span>
+                </Button>
+            </div>
+            <Card className="w-full max-w-md shadow-2xl animate-fade-in border-accent/20 bg-card/80 backdrop-blur-sm z-10 mt-12 md:mt-0">
                 <CardHeader className="space-y-3 items-center text-center">
                     <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mb-2">
                         <Dumbbell className="w-8 h-8 text-accent" />

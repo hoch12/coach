@@ -51,46 +51,46 @@ const Index = () => {
         </div>
 
         {/* Nav */}
-        <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-6 py-5 md:px-12">
+        <header className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-4 md:px-12 md:py-5 backdrop-blur-sm bg-background/5 md:bg-transparent border-b border-border/10 md:border-none">
           <div className="flex items-center gap-2">
-            <Dumbbell className="h-7 w-7 text-primary" />
-            <span className="text-xl font-display font-bold tracking-tight text-foreground">
+            <Dumbbell className="h-6 w-6 md:h-7 md:w-7 text-primary" />
+            <span className="text-lg md:text-xl font-display font-bold tracking-tight text-foreground">
               Coach-E
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center bg-background/50 backdrop-blur rounded-lg p-1 mr-2 border border-border/50">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="flex items-center bg-background/50 backdrop-blur rounded-lg p-0.5 md:p-1 border border-border/50">
                 <button 
                   onClick={() => setLanguage('en')} 
-                  className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:text-primary'}`}
+                  className={`px-1.5 py-0.5 md:px-2 md:py-1 text-[10px] md:text-xs font-bold rounded-md transition-colors ${language === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:text-primary'}`}
                 >
                   EN
                 </button>
                 <button 
                   onClick={() => setLanguage('cs')} 
-                  className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'cs' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:text-primary'}`}
+                  className={`px-1.5 py-0.5 md:px-2 md:py-1 text-[10px] md:text-xs font-bold rounded-md transition-colors ${language === 'cs' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:text-primary'}`}
                 >
                   CS
                 </button>
             </div>
             {user ? (
-              <div className="flex items-center gap-2">
-                <Button variant="heroOutline" size="sm" onClick={() => navigate("/dashboard")} className="hidden xs:inline-flex">
+              <div className="flex items-center gap-1 md:gap-2">
+                <Button variant="heroOutline" size="sm" onClick={() => navigate("/dashboard")} className="hidden sm:inline-flex h-8 text-xs">
                   {t('goToDashboard', 'landing')}
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => { logout(); navigate("/login"); }} className="text-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                <Button variant="ghost" size="sm" onClick={() => { logout(); navigate("/login"); }} className="text-foreground hover:bg-destructive/10 hover:text-destructive h-8 px-2 text-xs">
                   {t('logout', 'landing')}
                 </Button>
               </div>
             ) : (
-              <>
-                <Button variant="ghost" size="sm" onClick={() => navigate("/login")} className="text-foreground hover:bg-secondary">
+              <div className="flex items-center gap-1 md:gap-2">
+                <Button variant="ghost" size="sm" onClick={() => navigate("/login")} className="text-foreground hover:bg-secondary h-8 px-2 text-xs">
                   {t('login', 'landing')}
                 </Button>
-                <Button variant="heroOutline" size="sm" onClick={() => navigate("/register")}>
+                <Button variant="heroOutline" size="sm" onClick={() => navigate("/register")} className="h-8 text-xs px-3">
                   {t('getStarted', 'landing')}
                 </Button>
-              </>
+              </div>
             )}
           </div>
         </header>
@@ -107,19 +107,19 @@ const Index = () => {
             </span>
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-display font-bold leading-[1.1] mb-6">
               {t('title1', 'landing')}{" "}
-              <span className="text-gradient">{t('title2', 'landing')}</span>
+              <span className="text-gradient block sm:inline">{t('title2', 'landing')}</span>
             </h1>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-xl mb-10 leading-relaxed">
+            <p className="text-base md:text-xl text-muted-foreground max-w-xl mb-10 leading-relaxed">
               {t('subtitle', 'landing')}
             </p>
-            <div className="flex flex-wrap gap-4">
-              <Button variant="hero" size="xl" onClick={() => navigate(user ? "/dashboard" : "/register")}>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button variant="hero" size="xl" onClick={() => navigate(user ? "/dashboard" : "/register")} className="w-full sm:w-auto">
                 {user ? t('goToDashboard', 'landing') : t('startPlan', 'landing')}
                 <ChevronRight className="ml-1 h-5 w-5" />
               </Button>
               <Button variant="heroOutline" size="xl" onClick={() => {
                 document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
-              }}>
+              }} className="w-full sm:w-auto">
                 {t('learnMore', 'landing')}
               </Button>
             </div>

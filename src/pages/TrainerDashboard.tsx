@@ -102,10 +102,12 @@ export default function TrainerDashboard() {
                 });
                 setBookings(await res.json());
             } else if (activeTab === "chat") {
-                const res = await fetch(getApiUrl("/api/support"), {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setTickets(await res.json());
+                const [clientsRes, ticketsRes] = await Promise.all([
+                    fetch(getApiUrl("/api/trainer/clients"), { headers: { Authorization: `Bearer ${token}` } }),
+                    fetch(getApiUrl("/api/support"), { headers: { Authorization: `Bearer ${token}` } })
+                ]);
+                if (clientsRes.ok) setClients(await clientsRes.json());
+                if (ticketsRes.ok) setTickets(await ticketsRes.json());
             }
         } catch (e) {
             toast.error("Failed to load data");
@@ -372,60 +374,61 @@ export default function TrainerDashboard() {
 
             {/* Main */}
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className="px-4 md:px-8 py-4 md:py-6 border-b border-border/50 flex flex-col md:flex-row gap-4 justify-between items-center bg-card/30 backdrop-blur-md sticky top-0 z-10">
+                <header className="px-4 md:px-8 py-3 md:py-6 border-b border-border/50 flex flex-col md:flex-row gap-3 justify-between items-center bg-card/30 backdrop-blur-md sticky top-0 z-20">
                     <div className="flex w-full md:w-auto items-center justify-between">
-                        <h1 className="text-xl md:text-2xl font-display font-bold">{t('trainerDashboard', 'trainer')}</h1>
-                        <div className="flex md:hidden gap-1 items-center border-l border-border/50 pl-2 ml-1">
+                        <div className="flex items-center gap-2">
+                           <Dumbbell className="h-5 w-5 text-primary md:hidden" />
+                           <h1 className="text-lg md:text-2xl font-display font-bold">{t('trainerDashboard', 'trainer')}</h1>
+                        </div>
+                        <div className="flex md:hidden gap-0.5 items-center bg-secondary/20 p-1 rounded-xl">
                             {navItems.map(item => (
                                 <button
                                     key={item.id}
                                     onClick={() => setActiveTab(item.id)}
-                                    className={`p-2 rounded-lg transition-colors ${activeTab === item.id ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
-                                    title={item.label}
+                                    className={`p-2 rounded-lg transition-all ${activeTab === item.id ? "bg-primary text-primary-foreground shadow-lg scale-105" : "text-muted-foreground hover:bg-secondary/50"}`}
                                 >
-                                    <item.icon className="h-5 w-5" />
+                                    <item.icon className="h-4 w-4" />
                                 </button>
                             ))}
+                            <div className="w-px h-4 bg-border/50 mx-1" />
                             <button
                                 onClick={() => setIsProfileOpen(true)}
-                                className="p-2 rounded-lg text-muted-foreground hover:text-primary transition-colors"
-                                title="My Profile"
+                                className={`p-2 rounded-lg transition-colors ${isProfileOpen ? "bg-primary/20 text-primary" : "text-muted-foreground"}`}
                             >
-                                <User className="h-5 w-5" />
+                                <User className="h-4 w-4" />
                             </button>
                             <button
                                 onClick={() => { logout(); navigate("/login"); }}
                                 className="p-2 rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
-                                title="Sign Out"
                             >
-                                <LogOut className="h-5 w-5" />
+                                <LogOut className="h-4 w-4" />
                             </button>
                         </div>
                     </div>
                     <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                        <div className="flex items-center bg-secondary/50 rounded-lg p-1 mr-2">
+                        <div className="flex items-center bg-secondary/50 rounded-lg p-0.5 md:p-1 mr-1">
                             <button 
                                 onClick={() => setLanguage('en')} 
-                                className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                className={`px-1.5 py-0.5 md:px-2 md:py-1 text-[10px] md:text-xs font-bold rounded-md transition-colors ${language === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 EN
                             </button>
                             <button 
                                 onClick={() => setLanguage('cs')} 
-                                className={`px-2 py-1 text-xs font-bold rounded-md transition-colors ${language === 'cs' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                className={`px-1.5 py-0.5 md:px-2 md:py-1 text-[10px] md:text-xs font-bold rounded-md transition-colors ${language === 'cs' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 CS
                             </button>
                         </div>
-                        <div className="text-right">
-                            <p className="text-sm font-medium">{user?.username}</p>
-                            <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+                        <div className="hidden sm:block text-right">
+                            <p className="text-xs font-medium leading-none">{user?.username}</p>
+                            <p className="text-[10px] text-muted-foreground capitalize">{user?.role}</p>
                         </div>
-                        <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border border-primary/20">
+                        <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-primary/20 flex items-center justify-center overflow-hidden border border-primary/20">
                             {user?.profile_image ? (
                                 <img src={user.profile_image} alt="Avatar" className="h-full w-full object-cover" />
                             ) : (
-                                <span className="text-primary font-bold">{user?.username?.[0]?.toUpperCase()}</span>
+                                <span className="text-xs md:text-sm text-primary font-bold">{user?.username?.[0]?.toUpperCase()}</span>
                             )}
                         </div>
                     </div>
@@ -519,60 +522,73 @@ export default function TrainerDashboard() {
                                         <MessageCircle className="h-4 w-4" />
                                         {t('chats', 'trainer') || "Conversations"}
                                     </div>
-                                    <div className="flex-1 overflow-y-auto w-full p-2 space-y-1">
-                                        <div 
-                                            onClick={() => setSelectedChatUser({ id: 'admin', username: t('systemAdmin', 'trainer') || 'System Admin' })}
-                                            className={`p-3 rounded-xl cursor-pointer hover:bg-accent/10 transition-colors flex justify-between items-center border border-dashed ${selectedChatUser?.id === 'admin' ? 'bg-accent/10 border-accent/40' : 'border-border/30'}`}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                {(() => {
-                                                    const adminTickets = tickets.filter(t => {
+                                        {(() => {
+                                            const adminObj = { id: 'admin', username: t('systemAdmin', 'trainer') || 'System Admin', isAdmin: true };
+                                            const allConvs = [adminObj, ...clients];
+                                            
+                                            const getLatestTime = (conv: any) => {
+                                                const convTickets = tickets.filter(t => {
+                                                    if (conv.isAdmin) {
                                                         const t_userId = Number(t.user_id);
                                                         const t_trainerId = t.trainer_id ? Number(t.trainer_id) : null;
                                                         const currentUserId = Number(user?.id);
                                                         return t_userId === currentUserId && (t_trainerId === null || t_trainerId === 0);
-                                                    }).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                                                    } else {
+                                                        return Number((t as any).user_id) === Number(conv.id);
+                                                    }
+                                                });
+                                                return convTickets.length > 0 ? Math.max(...convTickets.map(t => new Date(t.created_at).getTime())) : 0;
+                                            };
+
+                                            return allConvs
+                                                .sort((a, b) => getLatestTime(b) - getLatestTime(a))
+                                                .map(conv => {
+                                                    const isConvAdmin = conv.id === 'admin';
+                                                    const convTickets = tickets.filter(t => {
+                                                        if (isConvAdmin) {
+                                                            const t_userId = Number(t.user_id);
+                                                            const t_trainerId = t.trainer_id ? Number(t.trainer_id) : null;
+                                                            return t_userId === Number(user?.id) && (t_trainerId === null || t_trainerId === 0);
+                                                        } else {
+                                                            return Number((t as any).user_id) === Number(conv.id);
+                                                        }
+                                                    });
                                                     
-                                                    const lastAdminMsg = adminTickets[adminTickets.length - 1];
-                                                    const hasUnreadAdmin = lastAdminMsg && Number(lastAdminMsg.sender_id) !== Number(user?.id) && lastAdminMsg.status === 'open';
-                                                    
-                                                    return hasUnreadAdmin ? (
-                                                        <div className="w-2 h-2 rounded-full bg-accent animate-pulse shadow-[0_0_8px_rgba(var(--accent),0.5)]" />
-                                                    ) : (
-                                                        <div className="w-2 h-2 rounded-full bg-accent/20" />
+                                                    const sorted = [...convTickets].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+                                                    const lastMsg = sorted[sorted.length - 1];
+                                                    const hasUnread = lastMsg && Number(lastMsg.sender_id) !== Number(user?.id) && lastMsg.status === 'open';
+
+                                                    if (isConvAdmin) {
+                                                        return (
+                                                            <div 
+                                                                key="admin"
+                                                                onClick={() => setSelectedChatUser(conv)}
+                                                                className={`p-3 rounded-xl cursor-pointer hover:bg-accent/10 transition-colors flex justify-between items-center border border-dashed mb-2 ${selectedChatUser?.id === 'admin' ? 'bg-accent/10 border-accent/40' : 'border-border/30'}`}
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    {hasUnread ? (
+                                                                        <div className="w-2 h-2 rounded-full bg-accent animate-pulse shadow-[0_0_8px_rgba(var(--accent),0.5)]" />
+                                                                    ) : (
+                                                                        <div className="w-2 h-2 rounded-full bg-accent/20" />
+                                                                    )}
+                                                                    <span className="font-bold text-sm text-accent">{t('administrator', 'trainer') || "Administrator"}</span>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }
+
+                                                    return (
+                                                        <div 
+                                                            key={conv.id}
+                                                            onClick={() => setSelectedChatUser(conv)}
+                                                            className={`p-3 rounded-xl cursor-pointer hover:bg-accent/10 transition-colors flex justify-between items-center mb-1 ${selectedChatUser?.id === conv.id ? 'bg-primary/10 border border-primary/20' : ''}`}
+                                                        >
+                                                            <span className="font-semibold text-sm">{conv.username}</span>
+                                                            {hasUnread && <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" />}
+                                                        </div>
                                                     );
-                                                })()}
-                                                <span className="font-bold text-sm text-accent">{t('administrator', 'trainer') || "Administrator"}</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="h-px bg-border/30 my-2" />
-
-                                        {[...clients]
-                                            .sort((a, b) => {
-                                                const ticketsA = tickets.filter(t => Number((t as any).user_id) === Number(a.id));
-                                                const ticketsB = tickets.filter(t => Number((t as any).user_id) === Number(b.id));
-                                                const timeA = ticketsA.length > 0 ? Math.max(...ticketsA.map(t => new Date(t.created_at).getTime())) : 0;
-                                                const timeB = ticketsB.length > 0 ? Math.max(...ticketsB.map(t => new Date(t.created_at).getTime())) : 0;
-                                                return timeB - timeA;
-                                            })
-                                            .map(client => {
-                                                const clientTickets = tickets.filter(t => Number((t as any).user_id) === Number(client.id));
-                                                const sorted = [...clientTickets].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-                                                const lastMsg = sorted[sorted.length - 1];
-                                                const hasUnread = lastMsg && Number(lastMsg.sender_id) !== Number(user?.id) && lastMsg.status === 'open';
-                                                
-                                                return (
-                                                    <div 
-                                                        key={client.id}
-                                                        onClick={() => setSelectedChatUser(client)}
-                                                        className={`p-3 rounded-xl cursor-pointer hover:bg-accent/10 transition-colors flex justify-between items-center ${selectedChatUser?.id === client.id ? 'bg-primary/10 border border-primary/20' : ''}`}
-                                                    >
-                                                        <span className="font-semibold text-sm">{client.username}</span>
-                                                        {hasUnread && <div className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_rgba(var(--primary),0.5)]" />}
-                                                    </div>
-                                                );
-                                            })}
+                                                });
+                                        })()}
                                         {clients.length === 0 && <p className="text-xs text-muted-foreground p-2 text-center opacity-50">No clients assigned.</p>}
                                     </div>
                                 </div>
