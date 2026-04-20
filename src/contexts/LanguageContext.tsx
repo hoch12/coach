@@ -850,10 +850,10 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setLangState(lang);
     localStorage.setItem('fitforge-lang', lang);
 
-    // Sync to remote profile if logged in
-    if (token) {
+    // Sync to remote profile if logged in and token is available
+    if (token && token !== 'null') {
         try {
-            await fetch(getApiUrl("/api/user/settings"), {
+            const res = await fetch(getApiUrl("/api/user/settings"), {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -861,8 +861,17 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 },
                 body: JSON.stringify({ language: lang })
             });
+
+            if (res.status === 403 || res.status === 401) {
+                // Silently ignore if token is invalid, AuthContext will handle logout
+                return;
+            }
+
+            if (!res.ok) {
+                console.warn("[Language] Remote sync failed:", res.status);
+            }
         } catch (e) {
-            console.error("Failed to sync language preference remotely");
+            console.error("[Language] Sync Network Error:", e);
         }
     }
   };

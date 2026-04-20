@@ -26,10 +26,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     const logout = useCallback(() => {
+        setIsLoading(true);
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         setToken(null);
         setUser(null);
+        setIsLoading(false);
     }, []);
 
     const login = useCallback((newToken: string, newUser: User) => {

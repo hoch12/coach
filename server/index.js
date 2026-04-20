@@ -98,6 +98,10 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
 app.put('/api/user/settings', authenticateToken, async (req, res) => {
     const { username, profile_image, language } = req.body;
 
+    if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: 'Unauthorized: No user ID found in token' });
+    }
+
     try {
         if (username) {
             // Check if username taken by someone else
@@ -118,10 +122,15 @@ app.put('/api/user/settings', authenticateToken, async (req, res) => {
 
         const updatedResult = await db.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
         const updatedUser = updatedResult.rows[0];
-        if (updatedUser) delete updatedUser.password;
+        
+        if (!updatedUser) {
+            return res.status(404).json({ error: 'User not found during update' });
+        }
+
+        delete updatedUser.password;
         res.json({ success: true, user: updatedUser });
     } catch (e) {
-        console.error("Settings update error:", e);
+        console.error("[Settings] Update error for user", req.user.id, ":", e.message);
         res.status(500).json({ error: 'Failed to update settings' });
     }
 });

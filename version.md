@@ -1,6 +1,12 @@
-2.14.6
+2.14.8
 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.14.8] - 2026-04-20
+### Fixed
+- **Auth Sync Loop Fix**: Resolved a critical issue where invalid tokens caused a loop of 403/500 errors in the console.
+- **Backend Stability**: Fixed a potential 500 Internal Server Error in the `/api/user/settings` endpoint by adding better input validation and error logging.
+- **Graceful Logout**: Updated the logout process to clear auth states immediately, preventing background components from using stale tokens.
 
 ## [2.14.6] - 2026-04-20
 ### Fixed
