@@ -437,28 +437,6 @@ function buildPPLSplit(
   pool: ExercisePool,
   params: TrainingParams,
   data: OnboardingData,
-  lang: string
-): TrainingDay[] {
-  const { setsPerExercise: sets, primaryReps, secondaryReps, primaryRest, secondaryRest } = params;
-  const isCs = lang === 'cs';
-
-  const push1 = {
-    day: isCs ? "Pondělí" : "Monday",
-    focus: isCs ? "Tlaky (Síla)" : "Push (Strength)",
-    exercises: [
-      { name: pick(pool.horizontalPush, 0), sets, reps: primaryReps, rest: primaryRest },
-      { name: pick(pool.verticalPush, 0), sets: sets - 1, reps: secondaryReps, rest: secondaryRest },
-      { name: pick(pool.horizontalPush, 1), sets: 3, reps: secondaryReps, rest: secondaryRest },
-      { name: pick(pool.posterior, 0), sets: 4, reps: "12-15", rest: "45 sec" },
-      { name: pick(pool.arms, 2), sets: 3, reps: "10-12", rest: "60 sec" },
-    ],
-  };
-
-  const pull1 = {
-function buildPPLSplit(
-  pool: ExercisePool,
-  params: TrainingParams,
-  data: OnboardingData,
   lang: string,
   is6Day: boolean = false
 ): TrainingDay[] {
