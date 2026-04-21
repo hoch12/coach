@@ -22,8 +22,8 @@ export function TrainingTab({ plan }: Props) {
             </div>
             <div className="divide-y divide-border/30">
               {day.exercises.map((ex, i) => (
-                <div key={i} className="flex items-center justify-between px-5 py-3">
-                  <span className="text-sm font-medium">{ex.name}</span>
+                <div key={i} className="flex items-start justify-between px-5 py-3 gap-4">
+                  <span className="text-sm font-medium leading-tight flex-1">{ex.name}</span>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     <span>{ex.sets} × {ex.reps}</span>
                     <span className="hidden sm:inline">{t('rest', 'tabs')}: {ex.rest}</span>

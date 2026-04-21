@@ -660,9 +660,9 @@ const AdminPanel = () => {
                 )}
 
                 {activeTab === "messages" && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[70vh]">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[75vh] md:h-[70vh]">
                         {/* Conversations List */}
-                        <Card className="md:col-span-1 bg-card/50 border-border/50 backdrop-blur-sm flex flex-col overflow-hidden">
+                        <Card className={`md:col-span-1 bg-card/50 border-border/50 backdrop-blur-sm flex flex-col overflow-hidden ${replyingTo ? 'hidden md:flex' : 'flex'}`}>
                             <CardHeader className="py-4 border-b border-border/30">
                                 <CardTitle className="text-lg font-display font-bold">Inbox</CardTitle>
                                 <CardDescription className="text-[10px]">Recent communications</CardDescription>
@@ -675,17 +675,19 @@ const AdminPanel = () => {
                                     <button
                                         key={`new-${u.id}`}
                                         onClick={() => setReplyingTo(-u.id)}
-                                        className={`w-full p-4 flex items-center gap-3 border-b border-border/10 hover:bg-accent/5 transition-colors text-left group opacity-60 hover:opacity-100 ${replyingTo === -u.id ? 'bg-accent/10 border-r-2 border-r-accent opacity-100' : ''}`}
+                                        className={`w-full p-3 flex items-center gap-3 border-b border-border/10 hover:bg-accent/5 transition-colors text-left group opacity-60 hover:opacity-100 ${replyingTo === -u.id ? 'bg-accent/10 border-r-2 border-r-accent opacity-100' : ''}`}
                                     >
-                                        <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center font-bold text-xs shadow-inner text-accent">
+                                        <div className="h-9 w-9 flex-shrink-0 rounded-xl bg-accent/10 flex items-center justify-center font-bold text-xs shadow-inner text-accent">
                                             {u.username[0].toUpperCase()}
                                         </div>
-                                        <div className="flex-1 min-w-0">
+                                        <div className="flex-1 min-w-0 overflow-hidden">
                                             <div className="flex items-center gap-2 mb-0.5">
-                                                <span className="font-bold text-sm">{u.username}</span>
-                                                <Badge variant={u.role === 'trainer' ? 'hero' : 'secondary'} className="text-[7px] px-1 py-0 h-3 leading-none uppercase font-black">{u.role === 'trainer' ? 'Trainer' : 'Client'}</Badge>
+                                                <span className="font-bold text-xs truncate">{u.username}</span>
+                                                <Badge variant={u.role === 'trainer' ? 'hero' : 'secondary'} className="text-[6px] px-1 py-0 h-3 leading-none uppercase font-black">
+                                                    {u.role === 'trainer' ? 'Trainer' : 'Client'}
+                                                </Badge>
                                             </div>
-                                            <p className="text-[10px] text-muted-foreground italic">No messages yet - click to start</p>
+                                            <p className="text-[10px] text-muted-foreground italic truncate">Start conversation</p>
                                         </div>
                                     </button>
                                 ))}
@@ -714,20 +716,20 @@ const AdminPanel = () => {
                                                 <button
                                                     key={uid}
                                                     onClick={() => setReplyingTo(lastMsg?.id || null)}
-                                                    className={`w-full p-4 flex items-center gap-3 border-b border-border/10 hover:bg-primary/5 transition-colors text-left group ${replyingTo && tickets.find(t => t.id === replyingTo)?.user_id === uid ? 'bg-primary/10 border-r-2 border-r-primary' : ''}`}
+                                                    className={`w-full p-3 flex items-center gap-3 border-b border-border/10 hover:bg-primary/5 transition-colors text-left group ${replyingTo && tickets.find(t => t.id === replyingTo)?.user_id === uid ? 'bg-primary/10 border-r-2 border-r-primary' : ''}`}
                                                 >
-                                                    <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center font-bold text-xs shadow-inner">
+                                                    <div className="h-9 w-9 flex-shrink-0 rounded-xl bg-secondary flex items-center justify-center font-bold text-xs shadow-inner">
                                                         {lastMsg?.username[0].toUpperCase()}
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
+                                                    <div className="flex-1 min-w-0 overflow-hidden">
                                                         <div className="flex justify-between items-center mb-0.5">
                                                             <div className="flex items-center gap-2 truncate">
-                                                                <span className="font-bold text-sm truncate">{lastMsg?.username}</span>
-                                                                <Badge variant={isTrainer(uid) ? 'hero' : 'secondary'} className="text-[7px] px-1 py-0 h-3 leading-none uppercase font-black">
+                                                                <span className="font-bold text-xs truncate">{lastMsg?.username}</span>
+                                                                <Badge variant={isTrainer(uid) ? 'hero' : 'secondary'} className="text-[6px] px-1 py-0 h-3 leading-none uppercase font-black">
                                                                     {isTrainer(uid) ? 'Trainer' : 'Client'}
                                                                 </Badge>
                                                             </div>
-                                                            {unread > 0 && <span className="bg-primary text-primary-foreground text-[8px] font-black px-1.5 py-0.5 rounded-full ring-2 ring-primary/20">{unread}</span>}
+                                                            {unread > 0 && <span className="bg-primary text-primary-foreground text-[8px] font-black px-1.5 py-0.5 rounded-full flex-shrink-0">{unread}</span>}
                                                         </div>
                                                         <p className="text-[10px] text-muted-foreground truncate opacity-70 italic">"{lastMsg?.message}"</p>
                                                     </div>
@@ -739,38 +741,54 @@ const AdminPanel = () => {
                         </Card>
 
                         {/* Chat Window */}
-                        <Card className="md:col-span-2 bg-card/50 border-border/50 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden">
+                        <Card className={`md:col-span-2 bg-card/50 border-border/50 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden ${!replyingTo ? 'hidden md:flex' : 'flex'}`}>
                             {replyingTo ? (
                                 <>
                                     {replyingTo > 0 ? (
                                         // Existing thread header
                                         <div className="p-4 border-b border-border/30 bg-primary/5 flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center font-bold text-[10px] text-primary">
+                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="md:hidden p-0 h-8 w-8 text-muted-foreground" 
+                                                    onClick={() => setReplyingTo(null)}
+                                                >
+                                                    <ArrowLeft className="h-4 w-4" />
+                                                </Button>
+                                                <div className="h-8 w-8 rounded-lg bg-primary/20 flex-shrink-0 flex items-center justify-center font-bold text-[10px] text-primary">
                                                     {tickets.find(t => t.id === replyingTo)?.username[0].toUpperCase()}
                                                 </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs font-bold leading-none">{tickets.find(t => t.id === replyingTo)?.username}</span>
-                                                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-50">
+                                                <div className="flex flex-col truncate">
+                                                    <span className="text-xs font-bold leading-none truncate">{tickets.find(t => t.id === replyingTo)?.username}</span>
+                                                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-50 truncate">
                                                         {isTrainer(tickets.find(t => t.id === replyingTo)?.user_id || 0) ? 'Trainer Communication' : 'Client Communication'}
                                                     </span>
                                                 </div>
                                             </div>
-                                            <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest opacity-50">{t('supportChannel', 'admin') || "Support Channel"}</span>
+                                            <span className="hidden sm:block text-[8px] font-black uppercase text-muted-foreground tracking-widest opacity-50">{t('supportChannel', 'admin') || "Support Channel"}</span>
                                         </div>
                                     ) : (
                                         // New thread header (negative replyingTo = trainer ID)
                                         <div className="p-4 border-b border-border/30 bg-accent/5 flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-8 w-8 rounded-lg bg-accent/20 flex items-center justify-center font-bold text-[10px] text-accent">
+                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                <Button 
+                                                    variant="ghost" 
+                                                    size="sm" 
+                                                    className="md:hidden p-0 h-8 w-8 text-muted-foreground" 
+                                                    onClick={() => setReplyingTo(null)}
+                                                >
+                                                    <ArrowLeft className="h-4 w-4" />
+                                                </Button>
+                                                <div className="h-8 w-8 rounded-lg bg-accent/20 flex-shrink-0 flex items-center justify-center font-bold text-[10px] text-accent">
                                                     {trainers.find(tr => tr.id === -replyingTo)?.username[0].toUpperCase()}
                                                 </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs font-bold leading-none">{trainers.find(tr => tr.id === -replyingTo)?.username}</span>
-                                                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-50">New Conversation</span>
+                                                <div className="flex flex-col truncate">
+                                                    <span className="text-xs font-bold leading-none truncate">{trainers.find(tr => tr.id === -replyingTo)?.username}</span>
+                                                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-50 truncate">New Conversation</span>
                                                 </div>
                                             </div>
-                                            <span className="text-[8px] font-black uppercase text-accent tracking-widest opacity-70">New Thread</span>
+                                            <span className="hidden sm:block text-[8px] font-black uppercase text-accent tracking-widest opacity-70">New Thread</span>
                                         </div>
                                     )}
                                     <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-dots-pattern" ref={scrollRef}>

@@ -146,16 +146,16 @@ const SupportTab = () => {
     };
 
     return (
-        <div className="max-w-4xl mx-auto space-y-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="max-w-4xl mx-auto space-y-8 pb-10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1 md:px-0">
                 <div>
-                    <h1 className="text-3xl font-display font-bold tracking-tight">{t('coachSupportTitle', 'tabs')}</h1>
-                    <p className="text-muted-foreground mt-1 text-sm">
+                    <h1 className="text-2xl md:text-3xl font-display font-bold tracking-tight">{t('coachSupportTitle', 'tabs')}</h1>
+                    <p className="text-muted-foreground mt-1 text-xs md:text-sm">
                         {t('coachSupportDesc', 'tabs')}
                     </p>
                 </div>
                 
-                <div className="flex gap-2 p-1 bg-secondary/20 rounded-xl w-fit h-fit relative">
+                <div className="flex gap-1 p-1 bg-secondary/20 rounded-xl w-full sm:w-fit h-fit relative overflow-x-auto no-scrollbar">
                     {(() => {
                         const coachTickets = tickets.filter(t => t.trainer_id !== null && t.trainer_id !== 0)
                             .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
@@ -169,30 +169,30 @@ const SupportTab = () => {
 
                         return (
                             <>
-                                <div className="relative">
+                                <div className="relative flex-1 sm:flex-none">
                                     <Button 
                                         variant={recipient === "coach" ? "hero" : "ghost"} 
                                         size="sm" 
                                         onClick={() => setRecipient("coach")}
-                                        className="rounded-lg px-6"
+                                        className="rounded-lg px-4 md:px-6 w-full text-[10px] md:text-sm"
                                     >
                                         {t('coachSupport', 'tabs')}
                                     </Button>
                                     {hasUnreadCoach && (
-                                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full border-2 border-background shadow-[0_0_8px_rgba(var(--primary),0.5)] z-20" />
+                                        <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-primary rounded-full border-2 border-background shadow-[0_0_8px_rgba(var(--primary),0.5)] z-20" />
                                     )}
                                 </div>
-                                <div className="relative">
+                                <div className="relative flex-1 sm:flex-none">
                                     <Button 
                                         variant={recipient === "admin" ? "hero" : "ghost"} 
                                         size="sm" 
                                         onClick={() => setRecipient("admin")}
-                                        className="rounded-lg px-6"
+                                        className="rounded-lg px-4 md:px-6 w-full text-[10px] md:text-sm"
                                     >
                                         System Admin
                                     </Button>
                                     {hasUnreadAdmin && (
-                                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full border-2 border-background shadow-[0_0_8px_rgba(var(--primary),0.5)] z-20" />
+                                        <div className="absolute top-0 right-0 w-2.5 h-2.5 bg-primary rounded-full border-2 border-background shadow-[0_0_8px_rgba(var(--primary),0.5)] z-20" />
                                     )}
                                 </div>
                             </>
@@ -201,7 +201,7 @@ const SupportTab = () => {
                 </div>
             </div>
 
-            <Card className="bg-card/50 border-border/50 backdrop-blur-sm flex flex-col h-[600px] overflow-hidden">
+            <Card className="bg-card/50 border-border/50 backdrop-blur-sm flex flex-col h-[500px] md:h-[600px] overflow-hidden">
                 <CardHeader className="border-b bg-secondary/20 py-4">
                     <CardTitle className="flex items-center gap-2">
                         <MessageCircle className="h-5 w-5 text-primary" />

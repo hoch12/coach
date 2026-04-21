@@ -261,21 +261,37 @@ const Dashboard = () => {
                 {t('logout', 'common')}
               </Button>
             </div>
+
+            {/* Mobile Lang Toggle (visible only on mobile) */}
+            <div className="flex md:hidden items-center bg-secondary/50 rounded-lg p-0.5">
+              <button 
+                onClick={() => setLanguage('en')} 
+                className={`px-2 py-1 text-[10px] font-bold rounded-md transition-colors ${language === 'en' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                EN
+              </button>
+              <button 
+                onClick={() => setLanguage('cs')} 
+                className={`px-2 py-1 text-[10px] font-bold rounded-md transition-colors ${language === 'cs' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground'}`}
+              >
+                CS
+              </button>
+            </div>
           </div>
 
           {/* Mobile nav */}
-          <div className="flex md:hidden items-center justify-between px-6 py-2 border-t border-border/10 bg-secondary/5">
-            <div className="flex gap-1 overflow-x-auto no-scrollbar py-1 flex-1">
+          <div className="flex md:hidden items-center justify-between px-4 py-2 border-t border-border/10 bg-secondary/5 overflow-hidden">
+            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 flex-1">
               {navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
-                  className={`px-3 py-1.5 rounded-lg transition-colors flex-shrink-0 flex items-center gap-2 text-xs font-medium ${activeTab === item.id
+                  className={`px-3 py-1.5 rounded-lg transition-colors flex-shrink-0 flex items-center gap-2 text-[10px] font-bold ${activeTab === item.id
                     ? "bg-primary/20 text-primary border border-primary/30"
                     : "text-muted-foreground hover:bg-secondary/50"
                     }`}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className="h-3.5 w-3.5" />
                   {activeTab === item.id && item.label}
                 </button>
               ))}
@@ -301,7 +317,7 @@ const Dashboard = () => {
         
         {/* Quick stats */}
         {plan && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-6 pt-6">
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 px-4 md:px-6 pt-6">
             <QuickStat icon={Flame} label={t('calories', 'dashboard')} value={plan?.nutrition?.calories ? `${plan.nutrition.calories}` : "-"} unit="kcal" />
             <QuickStat icon={TrendingUp} label={t('protein', 'dashboard')} value={plan?.nutrition?.protein ? `${plan.nutrition.protein}` : "-"} unit="g" />
             <QuickStat icon={Dumbbell} label={t('trainingDays', 'dashboard')} value={plan?.trainingSplit?.length ? `${plan.trainingSplit.length}` : "-"} unit={t('perWeek', 'dashboard')} />
