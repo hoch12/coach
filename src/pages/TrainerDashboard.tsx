@@ -92,10 +92,12 @@ export default function TrainerDashboard() {
         setIsLoading(true);
         try {
             if (activeTab === "clients") {
-                const res = await fetch(getApiUrl("/api/trainer/clients"), {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setClients(await res.json());
+                const [clientsRes, ticketsRes] = await Promise.all([
+                    fetch(getApiUrl("/api/trainer/clients"), { headers: { Authorization: `Bearer ${token}` } }),
+                    fetch(getApiUrl("/api/support"), { headers: { Authorization: `Bearer ${token}` } })
+                ]);
+                if (clientsRes.ok) setClients(await clientsRes.json());
+                if (ticketsRes.ok) setTickets(await ticketsRes.json());
             } else if (activeTab === "schedule") {
                 const res = await fetch(getApiUrl("/api/bookings"), {
                     headers: { Authorization: `Bearer ${token}` }
@@ -330,10 +332,21 @@ export default function TrainerDashboard() {
         }
     };
 
+    // Compute unread count: unique conversations where last msg was NOT sent by trainer
+    const trainerUnreadCount = (() => {
+        const userIds = [...new Set(tickets.map(t => t.user_id))];
+        return userIds.filter(uid => {
+            const sorted = [...tickets.filter(t => t.user_id === uid)]
+                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+            const last = sorted[sorted.length - 1];
+            return last && Number(last.sender_id) !== Number(user?.id) && last.status === 'open';
+        }).length;
+    })();
+
     const navItems = [
         { id: "clients", label: t('myClients', 'trainer'), icon: Users },
         { id: "schedule", label: t('schedule', 'trainer'), icon: Calendar },
-        { id: "chat", label: t('messages', 'trainer'), icon: MessageCircle },
+        { id: "chat", label: t('messages', 'trainer'), icon: MessageCircle, badge: trainerUnreadCount },
     ];
 
     return (
@@ -354,6 +367,11 @@ export default function TrainerDashboard() {
                         >
                             <item.icon className="h-4 w-4" />
                             {item.label}
+                            {item.badge > 0 && (
+                                <span className="ml-auto bg-destructive text-destructive-foreground text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center">
+                                    {item.badge}
+                                </span>
+                            )}
                         </button>
                     ))}
                 </nav>
@@ -385,9 +403,14 @@ export default function TrainerDashboard() {
                                 <button
                                     key={item.id}
                                     onClick={() => setActiveTab(item.id)}
-                                    className={`p-2 rounded-lg transition-all ${activeTab === item.id ? "bg-primary text-primary-foreground shadow-lg scale-105" : "text-muted-foreground hover:bg-secondary/50"}`}
+                                    className={`relative p-2 rounded-lg transition-all ${activeTab === item.id ? "bg-primary text-primary-foreground shadow-lg scale-105" : "text-muted-foreground hover:bg-secondary/50"}`}
                                 >
                                     <item.icon className="h-4 w-4" />
+                                    {item.badge > 0 && (
+                                        <span className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-[7px] font-black w-3.5 h-3.5 rounded-full flex items-center justify-center">
+                                            {item.badge}
+                                        </span>
+                                    )}
                                 </button>
                             ))}
                             <div className="w-px h-4 bg-border/50 mx-1" />

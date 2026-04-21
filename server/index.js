@@ -428,7 +428,32 @@ app.post('/api/admin/support/:id/reply', authenticateToken, isAdmin, async (req,
     res.json({ success: true, id: result.rows[0].id });
 });
 
-// --- Booking Routes ---
+// Admin can initiate a conversation with a user (e.g., a trainer)
+app.post('/api/admin/support/initiate', authenticateToken, isAdmin, async (req, res) => {
+    const { targetUserId, message } = req.body;
+    if (!targetUserId || !message) return res.status(400).json({ error: 'targetUserId and message are required' });
+
+    try {
+        // Check if target user exists
+        const userResult = await db.query('SELECT id, role FROM users WHERE id = $1', [targetUserId]);
+        if (userResult.rowCount === 0) return res.status(404).json({ error: 'Target user not found' });
+
+        const targetUser = userResult.rows[0];
+        const trainerId = targetUser.role === 'trainer' ? null : null; // Admin talking to user, trainer_id is null
+
+        const result = await db.query(`
+            INSERT INTO support_tickets (user_id, trainer_id, message, sender_id, status)
+            VALUES ($1, $2, $3, $4, 'open')
+            RETURNING id
+        `, [targetUser.id, trainerId, message, req.user.id]);
+
+        res.json({ success: true, id: result.rows[0].id });
+    } catch (e) {
+        console.error('[Admin initiate chat] Error:', e.message);
+        res.status(500).json({ error: 'Failed to initiate conversation' });
+    }
+});
+
 app.get('/api/bookings', authenticateToken, async (req, res) => {
     let result;
     if (req.user.role === 'trainer') {

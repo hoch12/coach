@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, Users, Eye, LogOut, User, MessageCircle, AlertCircle } from "lucide-react";
+import { ArrowLeft, Trash2, Users, Eye, LogOut, User, MessageCircle, AlertCircle, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -55,6 +55,10 @@ const AdminPanel = () => {
     const [tickets, setTickets] = useState<SupportTicket[]>([]);
     const [replyText, setReplyText] = useState("");
     const [replyingTo, setReplyingTo] = useState<number | null>(null);
+
+    // Trainer Profile Dialog State
+    const [selectedTrainerProfile, setSelectedTrainerProfile] = useState<AdminUser | null>(null);
+    const [trainerClients, setTrainerClients] = useState<AdminUser[]>([]);
 
     const scrollToBottom = () => {
         if (scrollRef.current) {
@@ -145,13 +149,57 @@ const AdminPanel = () => {
             if (res.ok) {
                 toast.success(t('msgSentSuccess', 'admin') || "Reply sent successfully");
                 setReplyText("");
-                // Removed setReplyingTo(null) to keep chat persistent
                 fetchTickets();
             } else {
                 toast.error(t('msgSentError', 'admin') || "Failed to send reply");
             }
         } catch (e) {
             toast.error(t('networkError', 'common') || "Network error");
+        }
+    };
+
+    const handleInitiateTrainerChat = async (trainer: AdminUser) => {
+        if (!replyText.trim()) return;
+        try {
+            const res = await fetch(getApiUrl("/api/admin/support/initiate"), {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ targetUserId: trainer.id, message: replyText })
+            });
+            if (res.ok) {
+                toast.success("Message sent to " + trainer.username);
+                setReplyText("");
+                fetchTickets();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Failed to send message");
+            }
+        } catch (e) {
+            toast.error("Network error");
+        }
+    };
+
+    const viewTrainerProfile = async (trainer: AdminUser) => {
+        setSelectedTrainerProfile(trainer);
+        const clients = users.filter(u => u.role === 'user' && u.trainer_id === trainer.id);
+        setTrainerClients(clients);
+    };
+
+    const openTrainerChat = (trainer: AdminUser) => {
+        setSelectedTrainerProfile(null);
+        setActiveTab("messages");
+        // After tickets load, find or set the trainer's thread
+        const latestTrainerTicket = tickets
+            .filter(t => t.user_id === trainer.id)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        if (latestTrainerTicket) {
+            setReplyingTo(latestTrainerTicket.id);
+        } else {
+            // No messages yet — set a special "pending" state so admin can initiate
+            setReplyingTo(-trainer.id); // negative ID signals new thread for this trainer
         }
     };
 
@@ -250,9 +298,17 @@ const AdminPanel = () => {
 
     if (isLoading) return <div className="p-8 text-center text-muted-foreground">Loading Admin Panel...</div>;
 
+    // Compute unread conversation count: distinct threads where last msg is NOT from admin
+    const unreadConvCount = [...new Set(tickets.map(t => t.user_id))].filter(uid => {
+        const sorted = [...tickets.filter(t => t.user_id === uid)]
+            .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        const last = sorted[sorted.length - 1];
+        return last && Number(last.sender_id) !== Number(user?.id) && last.status === 'open';
+    }).length;
+
     return (
-        <div className="min-h-screen bg-background p-6">
-            <div className="max-w-4xl mx-auto space-y-6">
+        <div className="min-h-screen bg-background p-4 md:p-6">
+            <div className="max-w-7xl mx-auto space-y-6">
                 <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <Button variant="ghost" onClick={() => navigate("/dashboard")} className="pl-0 text-muted-foreground transition-colors hover:text-foreground">
                         <ArrowLeft className="mr-2 h-4 w-4" />
@@ -294,9 +350,9 @@ const AdminPanel = () => {
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${activeTab === "messages" ? "bg-accent/20 text-accent" : "text-muted-foreground hover:bg-secondary"}`}
                     >
                         {t('messaging', 'admin') || "Messaging"}
-                        {tickets.filter(t => t.status === 'open').length > 0 && (
+                        {unreadConvCount > 0 && (
                             <span className="bg-destructive text-destructive-foreground text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
-                                {tickets.filter(t => t.status === 'open').length}
+                                {unreadConvCount}
                             </span>
                         )}
                     </button>
@@ -379,9 +435,17 @@ const AdminPanel = () => {
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4 text-right">
-                                                        <Button variant="ghost" size="sm" onClick={() => deleteUser(t_item.id)} className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all rounded-lg">
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                        <div className="flex justify-end gap-1">
+                                                            <Button variant="ghost" size="sm" onClick={() => viewTrainerProfile(t_item)} className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all rounded-lg" title="View trainer profile">
+                                                                <Eye className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="sm" onClick={() => openTrainerChat(t_item)} className="h-8 w-8 p-0 text-muted-foreground hover:text-accent hover:bg-accent/10 transition-all rounded-lg" title="Message trainer">
+                                                                <MessageCircle className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button variant="ghost" size="sm" onClick={() => deleteUser(t_item.id)} className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all rounded-lg">
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -401,9 +465,17 @@ const AdminPanel = () => {
                                                     <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest opacity-50">#T-{t_item.id}</p>
                                                 </div>
                                             </div>
-                                            <Button variant="ghost" size="sm" onClick={() => deleteUser(t_item.id)} className="text-destructive h-10 w-10 p-0 rounded-xl bg-destructive/5">
-                                                <Trash2 className="h-5 w-5" />
-                                            </Button>
+                                            <div className="flex gap-2">
+                                                <Button variant="ghost" size="sm" onClick={() => viewTrainerProfile(t_item)} className="h-10 w-10 p-0 rounded-xl bg-primary/5 text-primary hover:bg-primary/10">
+                                                    <Eye className="h-5 w-5" />
+                                                </Button>
+                                                <Button variant="ghost" size="sm" onClick={() => openTrainerChat(t_item)} className="h-10 w-10 p-0 rounded-xl bg-accent/5 text-accent hover:bg-accent/10">
+                                                    <MessageCircle className="h-5 w-5" />
+                                                </Button>
+                                                <Button variant="ghost" size="sm" onClick={() => deleteUser(t_item.id)} className="text-destructive h-10 w-10 p-0 rounded-xl bg-destructive/5">
+                                                    <Trash2 className="h-5 w-5" />
+                                                </Button>
+                                            </div>
                                         </div>
                                     ))}
                                     {trainers.length === 0 && <p className="text-center py-12 text-muted-foreground italic text-sm">{t('noTrainersFound', 'admin') || "No trainers found"}</p>}
@@ -558,12 +630,32 @@ const AdminPanel = () => {
                                 <CardDescription className="text-[10px]">Recent communications</CardDescription>
                             </CardHeader>
                             <div className="flex-1 overflow-y-auto no-scrollbar">
-                                {tickets.length === 0 ? (
+                                {/* Trainers with no existing thread — can initiate */}
+                                {trainers.filter(tr => !tickets.some(t => t.user_id === tr.id)).map(tr => (
+                                    <button
+                                        key={`new-${tr.id}`}
+                                        onClick={() => setReplyingTo(-tr.id)}
+                                        className={`w-full p-4 flex items-center gap-3 border-b border-border/10 hover:bg-accent/5 transition-colors text-left group opacity-60 hover:opacity-100 ${replyingTo === -tr.id ? 'bg-accent/10 border-r-2 border-r-accent opacity-100' : ''}`}
+                                    >
+                                        <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center font-bold text-xs shadow-inner text-accent">
+                                            {tr.username[0].toUpperCase()}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <span className="font-bold text-sm">{tr.username}</span>
+                                                <Badge variant="hero" className="text-[7px] px-1 py-0 h-3 leading-none uppercase font-black">Trainer</Badge>
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground italic">No messages yet — click to start</p>
+                                        </div>
+                                    </button>
+                                ))}
+                                {/* Existing threads sorted by activity */}
+                                {tickets.length === 0 && trainers.filter(tr => !tickets.some(t => t.user_id === tr.id)).length === 0 ? (
                                     <div className="p-8 text-center text-muted-foreground grayscale opacity-40">
                                         <MessageCircle className="h-8 w-8 mx-auto mb-2" />
                                         <p className="text-[10px] font-bold uppercase tracking-widest">No messages</p>
                                     </div>
-                                ) : tickets.length > 0 ? (
+                                ) : (
                                     [...new Set(tickets.map(t => t.user_id))]
                                         .sort((a, b) => {
                                             const timesA = tickets.filter(t => t.user_id === a).map(t => new Date(t.created_at).getTime());
@@ -577,7 +669,7 @@ const AdminPanel = () => {
                                             const sorted = [...userTickets].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
                                             const lastMsg = sorted[sorted.length - 1];
                                             const isPendingReply = lastMsg && Number(lastMsg.sender_id) !== Number(user?.id) && lastMsg.status === 'open';
-                                            const unread = isPendingReply ? userTickets.filter(t => t.status === 'open' && t.sender_id !== Number(user?.id)).length : 0;
+                                            const unread = isPendingReply ? userTickets.filter(t => t.status === 'open' && Number(t.sender_id) !== Number(user?.id)).length : 0;
                                             return (
                                                 <button
                                                     key={uid}
@@ -602,7 +694,7 @@ const AdminPanel = () => {
                                                 </button>
                                             );
                                         })
-                                ) : null}
+                                )}
                             </div>
                         </Card>
 
@@ -610,38 +702,62 @@ const AdminPanel = () => {
                         <Card className="md:col-span-2 bg-card/50 border-border/50 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden">
                             {replyingTo ? (
                                 <>
-                                    <div className="p-4 border-b border-border/30 bg-primary/5 flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center font-bold text-[10px] text-primary">
-                                                {tickets.find(t => t.id === replyingTo)?.username[0].toUpperCase()}
+                                    {replyingTo > 0 ? (
+                                        // Existing thread header
+                                        <div className="p-4 border-b border-border/30 bg-primary/5 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center font-bold text-[10px] text-primary">
+                                                    {tickets.find(t => t.id === replyingTo)?.username[0].toUpperCase()}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold leading-none">{tickets.find(t => t.id === replyingTo)?.username}</span>
+                                                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-50">
+                                                        {isTrainer(tickets.find(t => t.id === replyingTo)?.user_id || 0) ? 'Trainer Communication' : 'Client Communication'}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-bold leading-none">{tickets.find(t => t.id === replyingTo)?.username}</span>
-                                                <span className="text-[8px] font-black uppercase tracking-tighter opacity-50">
-                                                    {isTrainer(tickets.find(t => t.id === replyingTo)?.user_id || 0) ? 'Trainer Communication' : 'Client Communication'}
-                                                </span>
-                                            </div>
+                                            <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest opacity-50">{t('supportChannel', 'admin') || "Support Channel"}</span>
                                         </div>
-                                        <span className="text-[8px] font-black uppercase text-muted-foreground tracking-widest opacity-50">{t('supportChannel', 'admin') || "Support Channel"}</span>
-                                    </div>
+                                    ) : (
+                                        // New thread header (negative replyingTo = trainer ID)
+                                        <div className="p-4 border-b border-border/30 bg-accent/5 flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-8 w-8 rounded-lg bg-accent/20 flex items-center justify-center font-bold text-[10px] text-accent">
+                                                    {trainers.find(tr => tr.id === -replyingTo)?.username[0].toUpperCase()}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold leading-none">{trainers.find(tr => tr.id === -replyingTo)?.username}</span>
+                                                    <span className="text-[8px] font-black uppercase tracking-tighter opacity-50">New Conversation</span>
+                                                </div>
+                                            </div>
+                                            <span className="text-[8px] font-black uppercase text-accent tracking-widest opacity-70">New Thread</span>
+                                        </div>
+                                    )}
                                     <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar bg-dots-pattern" ref={scrollRef}>
-                                        {/* Unified Message Stream */}
-                                        {tickets
-                                            .filter(t => t.user_id === tickets.find(msg => msg.id === replyingTo)?.user_id)
-                                            .map(ticket => {
-                                                const isPritomnyAdmin = ticket.sender_id === Number(user?.id);
-                                                return (
-                                                    <div key={ticket.id} className={`flex flex-col ${isPritomnyAdmin ? 'items-end' : 'items-start'} w-full animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                                                        <div className={`p-3 rounded-2xl ${isPritomnyAdmin ? 'bg-primary text-primary-foreground rounded-tr-none shadow-lg shadow-primary/20 max-w-[85%] border border-primary-foreground/10' : 'bg-secondary/80 backdrop-blur-md rounded-tl-none border border-border/50 shadow-sm max-w-[85%]'} relative overflow-hidden`}>
-                                                            <div className={`absolute top-0 ${isPritomnyAdmin ? 'right-0 w-1' : 'left-0 w-1'} h-full ${isPritomnyAdmin ? 'bg-white/20' : 'bg-muted-foreground/30'}`} />
-                                                            <p className="text-xs leading-relaxed px-1">{ticket.message}</p>
+                                        {replyingTo > 0 ? (
+                                            tickets
+                                                .filter(t => t.user_id === tickets.find(msg => msg.id === replyingTo)?.user_id)
+                                                .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                                                .map(ticket => {
+                                                    const isPritomnyAdmin = Number(ticket.sender_id) === Number(user?.id);
+                                                    return (
+                                                        <div key={ticket.id} className={`flex flex-col ${isPritomnyAdmin ? 'items-end' : 'items-start'} w-full animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                                                            <div className={`p-3 rounded-2xl ${isPritomnyAdmin ? 'bg-primary text-primary-foreground rounded-tr-none shadow-lg shadow-primary/20 max-w-[85%] border border-primary-foreground/10' : 'bg-secondary/80 backdrop-blur-md rounded-tl-none border border-border/50 shadow-sm max-w-[85%]'} relative overflow-hidden`}>
+                                                                <div className={`absolute top-0 ${isPritomnyAdmin ? 'right-0 w-1' : 'left-0 w-1'} h-full ${isPritomnyAdmin ? 'bg-white/20' : 'bg-muted-foreground/30'}`} />
+                                                                <p className="text-xs leading-relaxed px-1">{ticket.message}</p>
+                                                            </div>
+                                                            <span className={`text-[9px] text-muted-foreground/50 mt-1 font-mono ${isPritomnyAdmin ? 'mr-1' : 'ml-1'}`}>
+                                                                {isPritomnyAdmin ? (t('systemResponse', 'admin') || "System Response") : ticket.username} • {new Date(ticket.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
                                                         </div>
-                                                        <span className={`text-[9px] text-muted-foreground/50 mt-1 font-mono ${isPritomnyAdmin ? 'mr-1' : 'ml-1'}`}>
-                                                            {isPritomnyAdmin ? (t('systemResponse', 'admin') || "System Response") : ticket.username} • {new Date(ticket.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
+                                                    );
+                                                })
+                                        ) : (
+                                            <div className="h-full flex items-center justify-center text-center text-muted-foreground opacity-50 flex-col gap-2">
+                                                <MessageCircle className="h-8 w-8" />
+                                                <p className="text-xs">Start a new conversation with this trainer</p>
+                                            </div>
+                                        )}
                                     </div>
                                     {/* Input Area */}
                                     <div className="p-4 bg-background/50 border-t border-border/50">
@@ -651,14 +767,28 @@ const AdminPanel = () => {
                                                 placeholder={t('typeMessage', 'messenger') || "Type your response..."}
                                                 value={replyText}
                                                 onChange={(e) => setReplyText(e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && handleReply(replyingTo)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        if (replyingTo > 0) handleReply(replyingTo);
+                                                        else {
+                                                            const trainer = trainers.find(tr => tr.id === -replyingTo);
+                                                            if (trainer) handleInitiateTrainerChat(trainer);
+                                                        }
+                                                    }
+                                                }}
                                             />
-                                            <Button 
-                                                onClick={() => handleReply(replyingTo)}
+                                            <Button
+                                                onClick={() => {
+                                                    if (replyingTo > 0) handleReply(replyingTo);
+                                                    else {
+                                                        const trainer = trainers.find(tr => tr.id === -replyingTo);
+                                                        if (trainer) handleInitiateTrainerChat(trainer);
+                                                    }
+                                                }}
                                                 className="absolute right-1 top-1 h-10 w-10 p-0 rounded-lg hover:rotate-12 transition-all active:scale-95"
                                                 disabled={!replyText.trim()}
                                             >
-                                                <ArrowLeft className="rotate-180 h-5 w-5" />
+                                                <Send className="h-4 w-4" />
                                             </Button>
                                         </div>
                                     </div>
@@ -798,8 +928,61 @@ const AdminPanel = () => {
                         </div>
                     </DialogContent>
                 </Dialog>
-            </div >
-        </div >
+                {/* Trainer Profile Dialog */}
+                <Dialog open={!!selectedTrainerProfile} onOpenChange={(open) => !open && setSelectedTrainerProfile(null)}>
+                    <DialogContent className="max-w-lg max-h-[80vh] flex flex-col p-0 overflow-hidden">
+                        <DialogHeader className="p-6 pb-2">
+                            <div className="flex items-center gap-4 mb-2">
+                                <div className="h-14 w-14 rounded-2xl bg-accent/10 flex items-center justify-center border border-accent/30">
+                                    <span className="text-xl font-bold text-accent">{selectedTrainerProfile?.username?.[0]?.toUpperCase()}</span>
+                                </div>
+                                <div>
+                                    <DialogTitle>{selectedTrainerProfile?.username}</DialogTitle>
+                                    <DialogDescription>Professional Trainer — {trainerClients.length} client(s) assigned</DialogDescription>
+                                </div>
+                            </div>
+                        </DialogHeader>
+                        <div className="flex-1 overflow-y-auto px-6 pb-6">
+                            <div className="space-y-4 mt-2">
+                                <div>
+                                    <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-3">Assigned Clients</h3>
+                                    {trainerClients.length > 0 ? (
+                                        <div className="space-y-2">
+                                            {trainerClients.map(c => (
+                                                <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/20 border border-border/30">
+                                                    <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold">
+                                                        {c.profile_image ? <img src={c.profile_image} className="h-full w-full object-cover rounded-lg" /> : c.username[0].toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-semibold text-sm">{c.username}</p>
+                                                        <p className="text-[10px] text-muted-foreground">Client #{c.id}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground italic">No clients assigned yet.</p>
+                                    )}
+                                </div>
+                                <div className="pt-4 border-t border-border/50 flex gap-2">
+                                    <Button
+                                        variant="hero"
+                                        className="flex-1"
+                                        onClick={() => {
+                                            if (selectedTrainerProfile) openTrainerChat(selectedTrainerProfile);
+                                        }}
+                                    >
+                                        <MessageCircle className="h-4 w-4 mr-2" />
+                                        Send Message
+                                    </Button>
+                                    <Button variant="outline" onClick={() => setSelectedTrainerProfile(null)}>Close</Button>
+                                </div>
+                            </div>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </div>
     );
 };
 
