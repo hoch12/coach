@@ -1,6 +1,18 @@
-2.14.9
+2.15.0
 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.15.0] - 2026-04-21
+### Added
+- **Admin Panel Full Width**: Changed admin panel max-width from `4xl` to `7xl` so content uses the full screen on wide displays while maintaining mobile responsiveness.
+- **Admin Initiates Trainer Chat**: Admin can now click a message icon next to any trainer in the Manage Trainers tab to open a new conversation, even if the trainer hasn't written first. New backend endpoint `/api/admin/support/initiate` was added.
+- **Trainer Profile Dialog**: Clicking the eye icon on a trainer in Manage Trainers shows a dialog with the trainer's assigned clients and a "Send Message" button.
+- **Unread Badge - Admin**: The "Messaging" tab badge now shows the count of conversations where the last message is from the other party (truly unread), not the total open ticket count.
+- **Unread Badge - Trainer**: Trainer sidebar and mobile nav "Messages" icon now shows a red badge with unread conversation count.
+
+### Fixed
+- Admin inbox sidebar now lists all trainers even without existing messages (greyed out), allowing admin to initiate conversations.
+- Message sorting is now stable (ascending by created_at) in the chat window.
 
 ## [2.14.9] - 2026-04-21
 ### Fixed
