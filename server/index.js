@@ -341,7 +341,6 @@ app.get('/api/admin/support', authenticateToken, isAdmin, async (req, res) => {
             u.username, u.role as user_role
         FROM support_tickets s 
         LEFT JOIN users u ON s.user_id = u.id 
-        WHERE s.trainer_id IS NULL OR s.trainer_id = 0
         ORDER BY s.created_at ASC
     `);
     res.json(result.rows);
