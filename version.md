@@ -1,6 +1,12 @@
-2.14.8
+2.14.9
 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [2.14.9] - 2026-04-21
+### Fixed
+- **DB Startup Stability**: Added retry logic (5 attempts, 3s delay) for database initialization on server startup to handle Neon cold-start timeouts on Render.
+- **Non-Fatal Startup**: Server no longer calls `process.exit(1)` on DB init failure — it starts anyway and retries, preventing Render restart loops.
+- **Root Cause**: The Neon project was newly created on 2026-04-20 with empty tables. The DB was only initialized successfully from localhost. All users must be re-registered.
 
 ## [2.14.8] - 2026-04-20
 ### Fixed

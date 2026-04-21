@@ -588,11 +588,30 @@ app.post('/api/logs/nutrition', authenticateToken, async (req, res) => {
     res.json({ success: true });
 });
 
-db.initDb().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
-    });
-}).catch(err => {
-    console.error('Failed to initialize database:', err);
-    process.exit(1);
-});
+
+const startServer = async (retries = 5, delay = 3000) => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            console.log(`[DB] Initialization attempt ${attempt}/${retries}...`);
+            await db.initDb();
+            console.log('[DB] Initialization successful.');
+            app.listen(PORT, () => {
+                console.log(`Server running on port ${PORT}`);
+            });
+            return;
+        } catch (err) {
+            console.error(`[DB] Attempt ${attempt} failed:`, err.message);
+            if (attempt < retries) {
+                console.log(`[DB] Retrying in ${delay / 1000}s...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+                console.error('[DB] All initialization attempts failed. Starting server anyway (DB may be unavailable).');
+                app.listen(PORT, () => {
+                    console.log(`Server running on port ${PORT} (DB connection failed - some endpoints may not work)`);
+                });
+            }
+        }
+    }
+};
+
+startServer();
