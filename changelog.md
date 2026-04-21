@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-04-21
+### Added
+- **Extreme Onboarding Personalization**: Support for exact training frequency (1-7 days), specific home equipment selection, and location-aware exercise pools.
+- **Vast Databases**: Implemented static databases for 250+ unique exercises and meals, categorized by equipment, diet, and level.
+- **Science-Driven Nutrition**: Automatic BMR/TDEE transparent calculation with safety calorie floors.
+- **Optional Body Fat**: Refined the body fat estimation logic to be optional while maintaining high calculation accuracy.
+- **Professional Training Splits**: Dynamic mapping of frequency to professional splits (PPL, Upper/Lower, Full Body).
+
+## [2.16.0] - 2026-04-21
+### Added
+- **Extreme Personalization Engine**: A data-driven onboarding system that generates training, nutrition, and lifestyle plans using professional-grade logic. Every input (limitations, equipment, frequency, motivation) directly influences the 250+ item content pool.
+- **Dynamic Training Splits**: Added support for 2-day Full Body splits up to 6-day PPL (Push/Pull/Legs) splits.
+- **Location-Aware Training**: Specific exercise pools for Gym, Home, Outdoor/Park, and Mixed environments.
+- **Dietary Deep-Dive**: Added "Pros & Cons" and "Strategy" sections for specific diets like Vegan and Keto in the nutrition plan.
+- **Safety Calorie Floors**: Implemented professional safe limits for daily calories (1400/1600 kcal) to prevent dangerously low intakes.
+- **Improved UI Step Navigation**: Added body fat slider and expanded health/advantage selections in the onboarding form.
+
+## [2.15.0] - 2026-04-21
+### Added
+- **Admin Panel Enhancements**: Switched admin panel to `7xl` max-width.
+- **Admin Messaging Control**: Admin can now initiate conversations with trainers and view their profiles (including their assigned clients).
+- **Redesigned Notification Badges**: Unread message counts are now accurate across all dashboards.
+- **Direct Trainer Communication**: Added `/support-initiate` endpoint for starting new threads from the admin panel.
+
+### Fixed
+- Express routing conflict for messaging endpoints.
+- Message list listed all users, allowing admin to initiate chat even without previous activity.
+
 ## [2.14.6] - 2026-04-20
 ### Fixed
 - **Unified Activity Sorting**: Merged "System Admin" and "Clients" into a single activity-sorted list in the Trainer Dashboard.

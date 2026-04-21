@@ -13,6 +13,7 @@ export interface OnboardingData {
   healthLimitations: string;
   trainingFrequency: string;
   trainingDuration: string;
+  homeEquipment: string[];
 
   // Goals
   fitnessGoals: string[];
@@ -45,6 +46,7 @@ export interface OnboardingData {
 
   // Plan preference
   planStyle: string;
+  workoutLocation: string;
 
   // Track the application version generated with
   appVersion?: string;
@@ -59,8 +61,9 @@ export const defaultOnboardingData: OnboardingData = {
   gender: "",
   fitnessLevel: "",
   healthLimitations: "",
-  trainingFrequency: "3-4 days",
+  trainingFrequency: "3",
   trainingDuration: "45-60",
+  homeEquipment: [],
   fitnessGoals: [],
   obstacles: [],
   advantages: [],
@@ -81,7 +84,8 @@ export const defaultOnboardingData: OnboardingData = {
   favoriteFoods: "",
   dislikedFoods: "",
   planStyle: "",
-  appVersion: "1.3.0",
+  workoutLocation: "mixed",
+  appVersion: "1.4.0",
 };
 
 // Generated plan types
@@ -145,8 +149,10 @@ export const step3Schema = z.object({
   proactivity: z.string().min(1, "errSelectProactivity"),
   selfDevelopment: z.string().max(150, "errInputTooLong"),
   perfectionism: z.string().max(150, "errInputTooLong"),
-  trainingFrequency: z.string().optional().default("3-4 days"),
+  trainingFrequency: z.string().optional().default("3"),
   trainingDuration: z.string().optional().default("45-60"),
+  homeEquipment: z.array(z.string()).optional().default([]),
+  workoutLocation: z.string().optional().default("mixed"),
 });
 
 export const step4Schema = z.object({

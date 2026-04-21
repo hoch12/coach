@@ -13,6 +13,7 @@ const getObstacleOptions = (t: any) => [
   { id: "stress", label: t('highStress', 'onboarding') },
   { id: "inconsistent-routine", label: t('inconsistentRoutine', 'onboarding') },
   { id: "poor-diet", label: t('poorDiet', 'onboarding') },
+  { id: "no-gym-access", label: t('noGymAccess', 'onboarding') },
   { id: "other", label: t('otherLimitations', 'onboarding') },
 ];
 
@@ -21,6 +22,8 @@ const getAdvantageOptions = (t: any) => [
   { id: "home-equipment", label: t('homeEquipment', 'onboarding') },
   { id: "time-flexibility", label: t('timeFlexibility', 'onboarding') },
   { id: "previous-experience", label: t('prevExperience', 'onboarding') },
+  { id: "outdoor-space", label: t('outdoorSpace', 'onboarding') },
+  { id: "personal-trainer", label: t('personalTrainer', 'onboarding') },
 ];
 
 function MultiSelect({ items, selected, onToggle }: {

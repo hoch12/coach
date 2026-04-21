@@ -1,4 +1,5 @@
 import { OnboardingData, NutritionPlan } from "@/types/onboarding";
+import { MEAL_DATABASE, Meal } from "./mealDatabase";
 
 /**
  * Generates a deeply personalized nutrition plan using ALL inputs:
@@ -129,10 +130,12 @@ function calculateMacros(data: OnboardingData) {
     calories = Math.round(tdee * surplus);
   }
 
-  // Absolute safety floor for calories
-  let calorieFloor = 1400;
-  if (!isMale) calorieFloor = 1200;
-  if (weight < 55 || isUnderweight) calorieFloor = 1800; // Hardgainer protection
+  // Absolute safety floor for calories - professional standard
+  let calorieFloor = 1600; // Men
+  if (!isMale) calorieFloor = 1400; // Women
+  if (weight < 50) calorieFloor = Math.max(calorieFloor - 200, 1200); // Very small individuals
+  
+  if (isUnderweight) calorieFloor = Math.round(tdee * 1.05); // Never deficit for underweight
   calories = Math.max(calories, calorieFloor);
 
   // Protein per kg based on multiple factors
@@ -165,32 +168,54 @@ interface MealSuggestion {
   calories: number;
 }
 
-function generateMeals(data: OnboardingData, totalCalories: number, lang: string): MealSuggestion[] {
+function generateMeals(data: OnboardingData, totalCalories: number, lang: string): { name: string; description: string; calories: number }[] {
   const freq = parseInt(data.mealFrequency) || 4;
-  const calPerMeal = Math.round(totalCalories / freq);
+  const isCs = lang === 'cs';
   const diet = data.dietaryPreference;
-  const allergies = data.allergies.toLowerCase();
   const budget = data.budgetLimitation;
-  const favorites = data.favoriteFoods || "";
-  const dislikes = data.dislikedFoods || "";
+  
+  const slots = getMealSlots(data, totalCalories, isCs);
+  
+  // Filter database by diet and budget
+  const availableMeals = MEAL_DATABASE.filter(m => 
+    m.diets.includes(diet) || (diet === "omnivore" && m.diets.includes("omnivore"))
+  );
 
-  // Build meal database filtered by preferences
-  const mealDb = getMealDatabase(diet, allergies, budget, favorites, dislikes, lang === 'cs');
+  return slots.map((slot, i) => {
+    let pool = availableMeals.filter(m => m.category === slot.category);
+    
+    // Preference for budget
+    if (budget === "tight") {
+      const tightPool = pool.filter(m => m.budget === "tight");
+      if (tightPool.length > 0) pool = tightPool;
+    }
 
-  const mealSlots = getMealSlots(freq, lang === 'cs');
+    if (pool.length === 0) {
+      // Fallback to any meal in category if diet-specific not found
+      pool = MEAL_DATABASE.filter(m => m.category === slot.category);
+    }
 
-  return mealSlots.map((slot, i) => {
-    const options = mealDb[slot.category] || mealDb["default"];
-    const meal = options[i % options.length];
+    const meal = pool[i % pool.length];
+    
+    // Calories per meal: Breakfast (25%), Lunch (35%), Dinner (25%), Snacks (15% total)
+    let mealCals = Math.round(totalCalories / freq);
+    if (slot.category === "breakfast") mealCals = Math.round(totalCalories * 0.25);
+    if (slot.category === "lunch") mealCals = Math.round(totalCalories * 0.35);
+    if (slot.category === "dinner") mealCals = Math.round(totalCalories * 0.25);
+    if (slot.category === "snack") mealCals = Math.round(totalCalories * 0.15 / (slots.filter(s => s.category === "snack").length || 1));
+
     return {
       name: slot.name,
-      description: meal,
-      calories: calPerMeal,
+      description: isCs ? meal.nameCs : meal.nameEn,
+      calories: mealCals
     };
   });
 }
 
-function getMealSlots(freq: number, isCs: boolean): { name: string; category: string }[] {
+function getMealSlots(data: OnboardingData, totalCalories: number, isCs: boolean): { name: string; category: string }[] {
+  const freq = parseInt(data.mealFrequency) || 4;
+  const isTrainingHeavy = (data.trainingFrequency && parseInt(data.trainingFrequency.split('-')[0]) >= 4) || data.disciplineLevel >= 8;
+  
   if (freq <= 2) {
     return [
       { name: isCs ? "Hlavní jídlo 1 (Dopoledne)" : "Main Meal 1 (Late Morning)", category: "lunch" },
@@ -198,28 +223,25 @@ function getMealSlots(freq: number, isCs: boolean): { name: string; category: st
     ];
   }
   if (freq === 3) {
-    return [
+    const slots = [
       { name: isCs ? "Snídaně" : "Breakfast", category: "breakfast" },
       { name: isCs ? "Oběd" : "Lunch", category: "lunch" },
       { name: isCs ? "Večeře" : "Dinner", category: "dinner" },
     ];
+    if (isTrainingHeavy) slots.push({ name: isCs ? "Potréninkové jídlo" : "Post-Workout Recovery", category: "snack" });
+    return slots;
   }
-  if (freq === 4) {
-    return [
-      { name: isCs ? "Snídaně" : "Breakfast", category: "breakfast" },
-      { name: isCs ? "Oběd" : "Lunch", category: "lunch" },
-      { name: isCs ? "Odpolední svačina" : "Afternoon Snack", category: "snack" },
-      { name: isCs ? "Večeře" : "Dinner", category: "dinner" },
-    ];
-  }
-  // 5+
-  return [
+  // 4+ meals
+  const slots = [
     { name: isCs ? "Snídaně" : "Breakfast", category: "breakfast" },
-    { name: isCs ? "Dopolední svačina" : "Mid-Morning Snack", category: "snack" },
     { name: isCs ? "Oběd" : "Lunch", category: "lunch" },
     { name: isCs ? "Odpolední svačina" : "Afternoon Snack", category: "snack" },
     { name: isCs ? "Večeře" : "Dinner", category: "dinner" },
   ];
+  if (isTrainingHeavy) {
+    slots.splice(2, 0, { name: isCs ? "Předtréninkový nakopávač" : "Pre-Workout Fuel", category: "snack" });
+  }
+  return slots;
 }
 
 function getMealDatabase(
@@ -472,6 +494,27 @@ function generateNutritionTips(data: OnboardingData, lang: string): string[] {
   const isCs = lang === 'cs';
   const goals = data.fitnessGoals;
 
+  // Add the "Truthfulness" calculation header
+  const weight = parseFloat(data.weight) || 75;
+  const height = parseFloat(data.height) || 175;
+  const age = parseInt(data.age) || 25;
+  const isMale = data.gender !== "female";
+  const bmr = isMale
+    ? 10 * weight + 6.25 * height - 5 * age + 5
+    : 10 * weight + 6.25 * height - 5 * age - 161;
+
+  const multipliers: Record<string, number> = {
+    sedentary: 1.2,
+    "lightly-active": 1.375,
+    "moderately-active": 1.55,
+    "very-active": 1.725,
+  };
+  const tdeeValue = Math.round(bmr * (multipliers[data.activityLevel] || 1.4));
+
+  tips.push(isCs 
+    ? `### Transparentní kalkulace: Bazální metabolismus (BMR) = ${Math.round(bmr)} kcal, Celkový denní výdej (TDEE) = ${tdeeValue} kcal.` 
+    : `### Science-Based Calculation: Your BMR = ${Math.round(bmr)} kcal, Your TDEE = ${tdeeValue} kcal.`);
+
   if (data.allergies && data.allergies.toLowerCase() !== "none") {
     tips.push(isCs 
       ? `Váš jídelníček byl sestaven tak, aby se vyhnul vašim alergiím/intolerancím: ${data.allergies}`
@@ -543,6 +586,36 @@ function generateNutritionTips(data: OnboardingData, lang: string): string[] {
   if (data.obstacles.includes("poor-diet")) {
     tips.push(isCs ? "Začněte nahrazením jednoho průmyslově zpracovaného jídla denně čerstvou alternativou" : "Start by replacing one processed meal per day with a whole-food alternative");
     tips.push(isCs ? "Mějte zdravé svačiny na očích a přístupné – jíte to, co vidíte" : "Keep healthy snacks visible and accessible — you eat what you see");
+  }
+
+  // Diet Specific Strategy Section (The "Professional Coach" deep dive)
+  const diet = data.dietaryPreference;
+  if (diet === "vegan") {
+    tips.push(isCs 
+      ? "### Vegan: Jak maximalizovat výsledky" 
+      : "### Vegan: How to Maximize Results");
+    tips.push(isCs 
+      ? "**Výhody:** Vysoký příjem vlákniny, nízký nasycený tuk, skvělá hydratace z ovoce/zeleniny." 
+      : "**Pros:** High fiber, low saturated fat, excellent hydration from fruits/veg.");
+    tips.push(isCs 
+      ? "**Rizika:** Potenciální nedostatek B12, železa a zinku. Nižší biologická dostupnost rostlinných bílkovin." 
+      : "**Cons:** Potential B12, Iron, and Zinc deficiencies. Lower bioavailability of plant proteins.");
+    tips.push(isCs 
+      ? "**Tip:** Kombinujte různé zdroje (čočka + rýže) pro kompletní aminokyselinový profil a doplňujte B12." 
+      : "**Strategy:** Combine sources (lentils + rice) for a complete amino profile and supplement B12.");
+  } else if (diet === "keto") {
+    tips.push(isCs 
+      ? "### Keto: Jak maximalizovat výsledky" 
+      : "### Keto: How to Maximize Results");
+    tips.push(isCs 
+      ? "**Výhody:** Stabilní hladina cukru, potlačení hladu, rychlá počáteční ztráta váhy (vody)." 
+      : "**Pros:** Stable blood sugar, hunger suppression, rapid initial water weight loss.");
+    tips.push(isCs 
+      ? "**Rizika:** 'Keto chřipka', nedostatek elektrolytů, omezení společenského stravování." 
+      : "**Cons:** 'Keto flu', electrolyte depletion, social dining restrictions.");
+    tips.push(isCs 
+      ? "**Tip:** Doplňujte sodík, hořčík a draslík. Zaměřte se na zdravé tuky (avokádo, ořechy), ne jen slaninu." 
+      : "**Strategy:** Supplement Sodium, Magnesium, and Potassium. Focus on healthy fats (avocado, nuts) over processed meats.");
   }
 
   // Hydration (universal)

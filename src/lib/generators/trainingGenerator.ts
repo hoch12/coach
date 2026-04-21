@@ -1,4 +1,5 @@
 import { OnboardingData, TrainingDay } from "@/types/onboarding";
+import { EXERCISE_DATABASE, Exercise } from "./exerciseDatabase";
 
 /**
  * Generates a personalized training split based on ALL user inputs:
@@ -18,17 +19,29 @@ import { OnboardingData, TrainingDay } from "@/types/onboarding";
 export function generateTrainingSplit(data: OnboardingData, lang: string = 'en'): TrainingDay[] {
   const { fitnessGoals, trainingFrequency, fitnessLevel, gender } = data;
   const isCs = lang === 'cs';
-  const freq = determineFrequency(data);
-  const exercises = selectExercisePool(data, lang);
+  const freq = parseInt(data.trainingFrequency) || 3;
+  const pool = selectExercisePool(data, lang);
   const params = determineTrainingParams(data);
 
   let split: TrainingDay[];
-  if (freq <= 3) {
-    split = buildFullBodySplit(freq, exercises, params, data, lang);
-  } else if (freq === 4) {
-    split = buildUpperLowerSplit(exercises, params, data, lang);
-  } else {
-    split = buildPPLSplit(exercises, params, data, lang);
+  switch(freq) {
+    case 1: 
+      split = buildFullBodySplit(1, pool, params, data, lang); break;
+    case 2:
+      split = build2DaySplit(pool, params, data, lang); break;
+    case 3:
+      split = buildFullBodySplit(3, pool, params, data, lang); break;
+    case 4:
+      split = buildUpperLowerSplit(pool, params, data, lang); break;
+    case 5:
+      split = buildPPLULSplit(pool, params, data, lang); break;
+    case 6:
+      split = buildPPLSplit(pool, params, data, lang, true); break; // 6 day = PPL x2
+    case 7:
+      split = buildPPLSplit(pool, params, data, lang, true); 
+      split.push(generateActiveRecoveryDay(data, lang)); break;
+    default:
+      split = buildFullBodySplit(3, pool, params, data, lang);
   }
 
   // Add warmup/cooldown based on plan style
@@ -36,17 +49,12 @@ export function generateTrainingSplit(data: OnboardingData, lang: string = 'en')
     split = addWarmupCooldown(split, data, lang);
   }
 
-  // Add cardio recommendations based on goals
-  split = addCardioRecommendations(split, data, lang);
-
   return split;
 }
 
 /** Determine training frequency from multiple factors */
 function determineFrequency(data: OnboardingData): number {
-  if (data.trainingFrequency === "1-2 days") return 2;
-  if (data.trainingFrequency === "5-6 days") return 6;
-  return 4; // default for 3-4 days
+  return parseInt(data.trainingFrequency) || 3;
 }
 
 interface TrainingParams {
@@ -80,14 +88,16 @@ function determineTrainingParams(data: OnboardingData): TrainingParams {
     isRecomp = false;
     isFatLoss = false;
     isMuscle = true;
-    // Strength can stay true if they selected it, but muscle is primary
     if (goals.includes("strength")) isStrength = true;
   }
 
   let setsPerExercise = level === "beginner" ? 3 : level === "intermediate" ? 3 : 4;
 
-  // Adjust sets based on stress/sleep
-  if (data.stressLevel === "high" || data.sleepQuality === "poor") {
+  // Adjust sets based on stress/sleep/health
+  const limitations = data.healthLimitations.toLowerCase();
+  const hasAsthma = limitations.includes("asthma") || limitations.includes("heart");
+  
+  if (data.stressLevel === "high" || data.sleepQuality === "poor" || hasAsthma) {
     setsPerExercise = Math.max(2, setsPerExercise - 1);
   }
 
@@ -113,9 +123,6 @@ function determineTrainingParams(data: OnboardingData): TrainingParams {
   } else if (isFatLoss) {
     primaryReps = "12-15";
     primaryRest = "45-60 sec";
-  } else if (isRecomp) {
-    primaryReps = "8-12";
-    primaryRest = "60-90 sec";
   }
 
   let secondaryReps = "10-15";
@@ -132,13 +139,13 @@ function determineTrainingParams(data: OnboardingData): TrainingParams {
   let intensity: "low" | "moderate" | "high" = "moderate";
   if (data.disciplineLevel >= 7 && data.motivationLevel >= 6) intensity = "high";
   if (data.disciplineLevel <= 3 || data.motivationLevel <= 3) intensity = "low";
-  if (data.stressLevel === "high") intensity = intensity === "high" ? "moderate" : intensity;
+  if (data.stressLevel === "high" || hasAsthma) intensity = intensity === "high" ? "moderate" : "low";
 
   // Age-based adjustments
   const age = parseInt(data.age) || 25;
   if (age > 45) {
     primaryRest = increaseRest(primaryRest);
-    if (isStrength) primaryReps = "4-6"; // slightly higher minimum
+    secondaryRest = increaseRest(secondaryRest);
   }
 
   return { setsPerExercise, primaryReps, secondaryReps, primaryRest, secondaryRest, intensity };
@@ -152,10 +159,6 @@ function increaseRest(rest: string): string {
     "90-120 sec": "2-3 min",
     "2-3 min": "3-4 min",
     "3-4 min": "3-5 min",
-    // Czech variants just in case
-    "30-45 sek": "45-60 sek",
-    "45-60 sek": "60-90 sek",
-    "60-90 sek": "90-120 sek",
   };
   return mapping[rest] || rest;
 }
@@ -175,136 +178,67 @@ interface ExercisePool {
 
 /** Select exercises based on equipment access and health limitations */
 function selectExercisePool(data: OnboardingData, lang: string): ExercisePool {
-  const hasGym = data.advantages.includes("gym-access");
-  const hasHome = data.advantages.includes("home-equipment");
-  const limitations = data.healthLimitations.toLowerCase();
-
-  const hasBackIssue = limitations.includes("lower-back") || limitations.includes("back") || limitations.includes("spine") || limitations.includes("zád") || limitations.includes("zad") || limitations.includes("páteř");
-  const hasKneeIssue = limitations.includes("knee-issues") || limitations.includes("missing-knee") || limitations.includes("knee") || limitations.includes("kolen") || limitations.includes("noh");
-  const hasMissingKnee = limitations.includes("missing-knee");
-  const hasShoulderIssue = limitations.includes("shoulder-issues") || limitations.includes("shoulder") || limitations.includes("ramen");
-
-  const hasNeckIssue = limitations.includes("neck-pain") || limitations.includes("neck");
-  const hasWristIssue = limitations.includes("wrist-issues") || limitations.includes("wrist");
-  const hasElbowIssue = limitations.includes("elbow-issues") || limitations.includes("elbow");
-  const hasHipIssue = limitations.includes("hip-issues") || limitations.includes("hip");
-  const hasAsthma = limitations.includes("asthma");
-
-  const hasGenericIssue = limitations.length > 0 && limitations !== "none" && !hasBackIssue && !hasKneeIssue && !hasShoulderIssue && !hasMissingKnee && !hasNeckIssue && !hasWristIssue && !hasElbowIssue && !hasHipIssue;
+  const location = data.workoutLocation;
+  const homeEquipment = data.homeEquipment || [];
+  const limitations = data.healthLimitations.toLowerCase().split(',').map(s => s.trim());
+  const goals = data.fitnessGoals || [];
+  const level = data.fitnessLevel;
   const isCs = lang === 'cs';
-  const modPrefix = hasGenericIssue ? (isCs ? `[Mod: ${data.healthLimitations}] ` : `[Mod: ${data.healthLimitations}] `) : ""; // Logic remains same but prepared for structure
 
-  // Helper to apply generic mod to heavy compound lifts
-  const addMod = (name: string) => modPrefix + name;
+  // Filter exercises based on equipment availability
+  const availableExercises = EXERCISE_DATABASE.filter(ex => {
+    // Gym exercises allowed only if at gym
+    if (location === "gym") {
+      return ex.equipment.includes("gym") || ex.equipment.includes("bodyweight");
+    }
+    
+    // Home/Outdoor/Mixed
+    const canUseBodyweight = ex.equipment.includes("bodyweight") || ex.equipment.includes("home");
+    const canUseSpecificHomeEquip = ex.equipment.some(eq => homeEquipment.includes(eq));
+    
+    if (location === "home") return canUseBodyweight || canUseSpecificHomeEquip;
+    if (location === "outdoor") return ex.equipment.includes("outdoor") || ex.equipment.includes("bodyweight");
+    
+    // Mixed: allow everything they have access to
+    return ex.equipment.includes("gym") || canUseBodyweight || canUseSpecificHomeEquip || ex.equipment.includes("outdoor");
+  });
 
-  // Base pool depends on equipment
-  if (hasGym) {
-    return {
-      squat: hasMissingKnee
-        ? ["Seated Leg Extension (Single Leg)", "Leg Press (Single Leg)", "Smith Machine Split Squat (Assisted)"]
-        : hasKneeIssue
-          ? ["Leg Press (limited ROM)", "Box Squat", "Wall Sit"]
-          : hasHipIssue
-            ? ["Leg Press", "Leg Extension", "Wall Sit"]
-            : hasWristIssue
-              ? [addMod("Barbell Squat"), "Goblet Squat (Kettlebell)", "Hack Squat"]
-              : [addMod("Barbell Squat"), "Front Squat", "Goblet Squat", "Hack Squat"],
-      hinge: hasBackIssue || hasHipIssue
-        ? ["Cable Pull-Through", "Hip Thrust", "Glute Bridge"]
-        : [addMod("Romanian Deadlift"), "Conventional Deadlift", "Trap Bar Deadlift"],
-      horizontalPush: hasShoulderIssue
-        ? ["Floor Press", "Chest Press Machine", "Push-Ups"]
-        : hasWristIssue
-          ? ["Dumbbell Bench Press", "Machine Chest Press", "Pec Deck"]
-          : [addMod("Bench Press"), "Incline Dumbbell Press", "Dumbbell Bench Press"],
-      verticalPush: hasShoulderIssue
-        ? ["Landmine Press", "Neutral Grip DB Press", "High Incline Press"]
-        : hasNeckIssue
-          ? ["Seated DB Press", "Machine Shoulder Press"]
-          : [addMod("Overhead Press"), "Arnold Press", "Seated DB Press"],
-      horizontalPull: hasElbowIssue
-        ? ["Light Cable Row", "Chest-Supported Machine Row"]
-        : ["Barbell Row", "Cable Row", "Dumbbell Row", "Chest-Supported Row"],
-      verticalPull: hasShoulderIssue
-        ? ["Neutral Grip Lat Pulldown", "Cable Pullover"]
-        : hasElbowIssue
-          ? ["Straight Arm Pulldown", "Light Pullover"]
-          : ["Pull-Ups", "Lat Pulldown", "Chin-Ups"],
-      legs: hasMissingKnee
-        ? ["Single Leg Curl", "Single Leg Extension", "Seated Calf Raise (Single Leg)"]
-        : hasKneeIssue || hasHipIssue
-          ? ["Hip Thrust", "Glute Kickback", "Calf Raises"]
-          : ["Walking Lunges", "Bulgarian Split Squat", "Leg Press", "Step-Ups"],
-      arms: hasElbowIssue
-        ? ["Light Cable Curls", "Light Tricep Pushdowns", "Concentration Curls"]
-        : ["Barbell Curls", "Tricep Pushdowns", "Hammer Curls", "Overhead Tricep Extension", "Cable Curls"],
-      core: hasBackIssue || hasNeckIssue
-        ? ["Dead Bug", "Bird Dog", "Pallof Press", "McGill Curl-Up"]
-        : ["Hanging Leg Raises", "Ab Wheel Rollout", "Cable Crunches", "Plank"],
-      posterior: hasNeckIssue
-        ? ["Band Pull-Aparts", "Rear Delt Machine"]
-        : ["Face Pulls", "Rear Delt Flyes", "Band Pull-Aparts", "Lateral Raises"],
-    };
-  } else if (hasHome) {
-    return {
-      squat: hasMissingKnee
-        ? ["Assisted Pistol Squat (Chair)", "Single Leg Step-Ups", "Wall Sit (Single Leg)"]
-        : hasKneeIssue
-          ? ["Wall Sit", "Partial Bodyweight Squat"]
-          : [addMod("Goblet Squat"), "Bodyweight Squat", "Pistol Squat Progression"],
-      hinge: hasBackIssue
-        ? ["Glute Bridge", "Single Leg Glute Bridge"]
-        : [addMod("Dumbbell RDL"), "Single Leg Deadlift", "Good Mornings"],
-      horizontalPush: hasShoulderIssue
-        ? ["Floor Press", "Incline Push-Ups"]
-        : [addMod("Push-Ups"), "Dumbbell Press", "Diamond Push-Ups"],
-      verticalPush: hasShoulderIssue
-        ? ["Landmine Press", "Neutral Grip Press"]
-        : [addMod("Dumbbell Shoulder Press"), "Pike Push-Ups"],
-      horizontalPull: ["Dumbbell Row", "Resistance Band Row", "Inverted Row"],
-      verticalPull: ["Doorway Pull-Ups", "Resistance Band Pulldown", "Dumbbell Pullover"],
-      legs: hasMissingKnee
-        ? ["Single Leg Glute Bridge", "Seated Calf Raise (Dumbbell)"]
-        : hasKneeIssue
-          ? ["Glute Bridge", "Calf Raises"]
-          : ["Lunges", "Step-Ups", "Jump Squats"],
-      arms: ["Dumbbell Curls", "Tricep Dips (chair)", "Concentration Curls"],
-      core: hasBackIssue
-        ? ["Dead Bug", "Bird Dog", "Side Plank"]
-        : ["Plank", "Bicycle Crunches", "Mountain Climbers", "V-Ups"],
-      posterior: ["Band Pull-Aparts", "Reverse Flyes", "YTW Raises"],
-    };
-  } else {
-    // Bodyweight only
-    return {
-      squat: hasMissingKnee
-        ? ["Assisted Pistol Squat (Chair)", "Wall Sit (Single Leg)"]
-        : hasKneeIssue
-          ? ["Wall Sit", "Assisted Squat"]
-          : [addMod("Bodyweight Squat"), "Jump Squat", "Pistol Squat Progression"],
-      hinge: hasBackIssue
-        ? ["Glute Bridge", "Single Leg Glute Bridge"]
-        : [addMod("Single Leg Deadlift"), "Good Mornings", "Glute Bridge"],
-      horizontalPush: hasShoulderIssue
-        ? ["Incline Push-Ups", "Kneeling Push-Ups"]
-        : [addMod("Push-Ups"), "Diamond Push-Ups", "Wide Push-Ups"],
-      verticalPush: hasShoulderIssue
-        ? ["Incline Push-Ups"]
-        : [addMod("Pike Push-Ups"), "Decline Push-Ups", "Handstand Hold"],
-      horizontalPull: ["Inverted Row (table)", "Resistance Band Row", "Superman"],
-      verticalPull: ["Doorway Pull-Ups", "Towel Rows", "Superman Y-Raises"],
-      legs: hasMissingKnee
-        ? ["Single Leg Glute Bridge", "Standing Calf Raise (Single Leg)"]
-        : hasKneeIssue
-          ? ["Glute Bridge", "Calf Raises"]
-          : ["Lunges", "Step-Ups", "Bulgarian Split Squat (chair)"],
-      arms: ["Diamond Push-Ups", "Chin-Up Hold", "Tricep Dips (chair)"],
-      core: hasBackIssue
-        ? ["Dead Bug", "Bird Dog", "Side Plank"]
-        : ["Plank", "Mountain Climbers", "Bicycle Crunches", "Leg Raises"],
-      posterior: ["YTW Raises", "Superman", "Reverse Snow Angels"],
-    };
-  }
+  // Helper to filter by muscle and safety
+  const get = (muscles: string[], mechanics?: "compound" | "isolation") => {
+    let filtered = availableExercises.filter(ex => 
+      ex.muscleGroups.some(m => muscles.includes(m))
+    );
+
+    if (mechanics) {
+      filtered = filtered.filter(ex => ex.mechanics === mechanics);
+    }
+
+    // Filter by health limitations
+    limitations.forEach(limit => {
+      if (limit === "lower-back") filtered = filtered.filter(ex => !["squat", "deadlift"].includes(ex.id));
+      if (limit === "knee-issues") filtered = filtered.filter(ex => !["squat", "lunges"].includes(ex.id));
+    });
+
+    if (filtered.length === 0) {
+      // Fallback to bodyweight if nothing found
+      filtered = EXERCISE_DATABASE.filter(ex => ex.equipment.includes("bodyweight") && ex.muscleGroups.some(m => muscles.includes(m)));
+    }
+
+    return filtered.map(ex => isCs ? ex.nameCs : ex.nameEn);
+  };
+
+  return {
+    squat: get(["quads", "legs", "glutes"], "compound"),
+    hinge: get(["hamstrings", "glutes"], "compound"),
+    horizontalPush: get(["chest"], "compound"),
+    verticalPush: get(["shoulders"], "compound"),
+    horizontalPull: get(["back"], "compound"),
+    verticalPull: get(["back"], "compound"),
+    legs: get(["quads", "hamstrings", "glutes"]),
+    arms: get(["biceps", "triceps"]),
+    core: get(["abs", "core"]),
+    posterior: get(["shoulders", "back"], "isolation")
+  };
 }
 
 function pick(arr: string[], index: number): string {
@@ -321,6 +255,42 @@ function applyDurationLimit(day: TrainingDay, data: OnboardingData): TrainingDay
 
   day.exercises = day.exercises.slice(0, maxExercises);
   return day;
+}
+
+function build2DaySplit(
+  pool: ExercisePool,
+  params: TrainingParams,
+  data: OnboardingData,
+  lang: string
+): TrainingDay[] {
+  const { setsPerExercise: sets, primaryReps, primaryRest, secondaryReps, secondaryRest } = params;
+  const isCs = lang === 'cs';
+
+  const day1 = {
+    day: isCs ? "Pondělí" : "Monday",
+    focus: isCs ? "Celé tělo A (Hlavní cviky)" : "Full Body A (Foundational)",
+    exercises: [
+      { name: pick(pool.squat, 0), sets, reps: primaryReps, rest: primaryRest },
+      { name: pick(pool.horizontalPush, 0), sets, reps: primaryReps, rest: primaryRest },
+      { name: pick(pool.verticalPull, 0), sets, reps: primaryReps, rest: primaryRest },
+      { name: pick(pool.hinge, 0), sets: sets - 1, reps: secondaryReps, rest: secondaryRest },
+      { name: pick(pool.core, 0), sets: 3, reps: "12-15", rest: "60 sec" },
+    ],
+  };
+
+  const day2 = {
+    day: isCs ? "Čtvrtek" : "Thursday",
+    focus: isCs ? "Celé tělo B (Doplňkové)" : "Full Body B (Accessory focus)",
+    exercises: [
+      { name: pick(pool.hinge, 1), sets, reps: primaryReps, rest: primaryRest },
+      { name: pick(pool.verticalPush, 0), sets, reps: primaryReps, rest: primaryRest },
+      { name: pick(pool.horizontalPull, 0), sets, reps: primaryReps, rest: primaryRest },
+      { name: pick(pool.legs, 0), sets: sets - 1, reps: secondaryReps, rest: secondaryRest },
+      { name: pick(pool.arms, 0), sets: 3, reps: "10-12", rest: "60 sec" },
+    ],
+  };
+
+  return [day1, day2].map(d => applyDurationLimit(d, data));
 }
 
 function buildFullBodySplit(
@@ -485,6 +455,29 @@ function buildPPLSplit(
   };
 
   const pull1 = {
+function buildPPLSplit(
+  pool: ExercisePool,
+  params: TrainingParams,
+  data: OnboardingData,
+  lang: string,
+  is6Day: boolean = false
+): TrainingDay[] {
+  const { setsPerExercise: sets, primaryReps, secondaryReps, primaryRest, secondaryRest } = params;
+  const isCs = lang === 'cs';
+
+  const push1 = {
+    day: isCs ? "Pondělí" : "Monday",
+    focus: isCs ? "Tlaky (Síla)" : "Push (Strength)",
+    exercises: [
+      { name: pick(pool.horizontalPush, 0), sets, reps: primaryReps, rest: primaryRest },
+      { name: pick(pool.verticalPush, 0), sets: sets - 1, reps: secondaryReps, rest: secondaryRest },
+      { name: pick(pool.horizontalPush, 1), sets: 3, reps: secondaryReps, rest: secondaryRest },
+      { name: pick(pool.posterior, 0), sets: 4, reps: "12-15", rest: "45 sec" },
+      { name: pick(pool.arms, 2), sets: 3, reps: "10-12", rest: "60 sec" },
+    ],
+  };
+
+  const pull1 = {
     day: isCs ? "Úterý" : "Tuesday",
     focus: isCs ? "Tahy (Síla)" : "Pull (Strength)",
     exercises: [
@@ -504,10 +497,14 @@ function buildPPLSplit(
       { name: pick(pool.hinge, 1), sets: sets - 1, reps: secondaryReps, rest: secondaryRest },
       { name: pick(pool.legs, 0), sets: 3, reps: secondaryReps, rest: secondaryRest },
       { name: pick(pool.legs, 1), sets: 3, reps: "12-15", rest: "60 sec" },
-      { name: "Calf Raises", sets: 4, reps: "15-20", rest: "45 sec" },
+      { name: isCs ? "Výpony" : "Calf Raises", sets: 4, reps: "15-20", rest: "45 sec" },
       { name: pick(pool.core, 0), sets: 3, reps: "10-15", rest: "45 sec" },
     ],
   };
+
+  if (!is6Day) {
+    return [push1, pull1, legs1].map(day => applyDurationLimit(day, data));
+  }
 
   const push2 = {
     day: isCs ? "Čtvrtek" : "Thursday",
@@ -517,7 +514,7 @@ function buildPPLSplit(
       { name: pick(pool.verticalPush, 1), sets: 3, reps: secondaryReps, rest: secondaryRest },
       { name: pick(pool.horizontalPush, 1), sets: 3, reps: "12-15", rest: "45 sec" },
       { name: pick(pool.posterior, 2), sets: 4, reps: "15-20", rest: "45 sec" },
-      { name: pick(pool.arms, 3 % pool.arms.length), sets: 3, reps: "12-15", rest: "45 sec" },
+      { name: pick(pool.arms, 3), sets: 3, reps: "12-15", rest: "45 sec" },
     ],
   };
 
@@ -528,12 +525,24 @@ function buildPPLSplit(
       { name: pick(pool.horizontalPull, 1), sets: 3, reps: secondaryReps, rest: secondaryRest },
       { name: pick(pool.verticalPull, 1), sets: 3, reps: secondaryReps, rest: secondaryRest },
       { name: pick(pool.horizontalPull, 2), sets: 3, reps: "12-15", rest: "60 sec" },
-      { name: pick(pool.posterior, 3 % pool.posterior.length), sets: 3, reps: "15-20", rest: "45 sec" },
+      { name: pick(pool.posterior, 3), sets: 3, reps: "15-20", rest: "45 sec" },
       { name: pick(pool.arms, 1), sets: 3, reps: "10-12", rest: "60 sec" },
     ],
   };
 
-  const result = [push1, pull1, legs1, push2, pull2];
+  const legs2 = {
+    day: isCs ? "Sobota" : "Saturday",
+    focus: isCs ? "Nohy (Objem)" : "Legs (Volume)",
+    exercises: [
+      { name: pick(pool.squat, 1), sets: sets - 1, reps: secondaryReps, rest: secondaryRest },
+      { name: pick(pool.hinge, 1), sets: sets - 1, reps: secondaryReps, rest: secondaryRest },
+      { name: pick(pool.legs, 2), sets: 3, reps: "12-15", rest: "60 sec" },
+      { name: isCs ? "Výpony" : "Calf Raises", sets: 4, reps: "15-20", rest: "45 sec" },
+      { name: pick(pool.core, 1), sets: 3, reps: "10-15", rest: "45 sec" },
+    ],
+  };
+
+  const result = [push1, pull1, legs1, push2, pull2, legs2];
 
   if (data.planStyle === "simple") {
     result.forEach((d) => { d.exercises = d.exercises.slice(0, 4); });
@@ -571,57 +580,31 @@ function addWarmupCooldown(split: TrainingDay[], data: OnboardingData, lang: str
   }));
 }
 
-function addCardioRecommendations(split: TrainingDay[], data: OnboardingData, lang: string): TrainingDay[] {
-  const goals = data.fitnessGoals;
+function buildPPLULSplit(
+  pool: ExercisePool,
+  params: TrainingParams,
+  data: OnboardingData,
+  lang: string
+): TrainingDay[] {
+  const isCs = lang === 'cs';
+  const ppl = buildPPLSplit(pool, params, data, lang, false);
+  const ul = buildUpperLowerSplit(pool, params, data, lang).slice(0, 2);
+  
+  // Adjust days
+  ul[0].day = isCs ? "Čtvrtek" : "Thursday";
+  ul[1].day = isCs ? "Pátek" : "Friday";
+  
+  return [...ppl, ...ul];
+}
 
-  const weight = parseFloat(data.weight) || 75;
-  const height = parseFloat(data.height) || 175;
-  const bmi = weight / ((height / 100) ** 2);
-  const isUnderweight = bmi < 18.5;
-
-  let isFatLoss = goals.includes("fat-loss");
-  const isGeneral = goals.includes("general-fitness");
-  const isLifestyle = goals.includes("lifestyle-change");
-
-  if (isUnderweight) isFatLoss = false;
-
-  if (!isFatLoss && !isGeneral && !isLifestyle) return split;
-
-  // Add rest-day cardio recommendation
-  const usedDays = new Set(split.map((d) => d.day));
-  const allDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-  const restDays = allDays.filter((d) => !usedDays.has(d));
-
-  if (restDays.length > 0) {
-    const isCs = lang === 'cs';
-    const cardioDay = restDays[0];
-    const daysEnToCs: Record<string, string> = {
-      "Monday": "Pondělí", "Tuesday": "Úterý", "Wednesday": "Středa", 
-      "Thursday": "Čtvrtek", "Friday": "Pátek", "Saturday": "Sobota", "Sunday": "Neděle"
-    };
-
-    let cardioType = isCs ? "30 min svižná chůze nebo lehká cyklistika" : "30-min brisk walk or light cycling";
-    if (isFatLoss) cardioType = isCs ? "30-45 min LISS kardio (chůze, kolo, plavání)" : "30-45 min LISS cardio (walking, cycling, swimming)";
-    if (isGeneral) cardioType = isCs ? "30 min smíšené kardio (kolo, běh, plavání)" : "30 min mixed cardio (cycling, jogging, swimming)";
-
-    // Add up to 2 cardio days
-    const cardioDays = restDays.slice(0, isFatLoss ? 2 : 1);
-    cardioDays.forEach((day) => {
-      split.push({
-        day: isCs ? daysEnToCs[day] : day,
-        focus: isCs ? "Aktivní regenerace / Kardio" : "Active Recovery / Cardio",
-        exercises: [
-          { name: cardioType, sets: 1, reps: isCs ? "Kontinuálně" : "Continuous", rest: "—" },
-          { name: isCs ? "Protahování a mobilita" : "Stretching & Mobility Work", sets: 1, reps: isCs ? "10-15 min" : "10-15 min", rest: "—" },
-        ],
-      });
-    });
-
-    // Sort by day order
-    const dayOrder: Record<string, number> = {};
-    allDays.forEach((d, i) => { dayOrder[d] = i; });
-    split.sort((a, b) => dayOrder[a.day] - dayOrder[b.day]);
-  }
-
-  return split;
+function generateActiveRecoveryDay(data: OnboardingData, lang: string): TrainingDay {
+  const isCs = lang === 'cs';
+  return {
+    day: isCs ? "Neděle" : "Sunday",
+    focus: isCs ? "Aktivní regenerace" : "Active Recovery",
+    exercises: [
+      { name: isCs ? "Svižná chůze / Lehká jóga" : "Brisk Walk / Light Yoga", sets: 1, reps: "30-45 min", rest: "—" },
+      { name: isCs ? "Pěnový válec & Mobilita" : "Foam Rolling & Mobility", sets: 1, reps: "15 min", rest: "—" }
+    ]
+  };
 }

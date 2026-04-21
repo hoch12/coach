@@ -1,6 +1,25 @@
-2.15.0
+3.1.0
 
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [3.1.0] - 2026-04-21
+### Added
+- **Extreme Personalization Engine**: Refactored the core logic to transform generic advice into professional-grade coaching.
+- **Vast Content Databases**: Added `EXERCISE_DATABASE` (~150 exercises) and `MEAL_DATABASE` (~100 meals) with support for specific equipment, diets, and budget constraints.
+- **Exact Frequency Support**: Users now select the exact number of training days (1-7), mapping to specific, science-based splits (Full Body, UL, PPLx2).
+- **Environment-Specific Logic**: Plans now strictly filter exercises based on selected location (Gym, Home, Outdoor) and specific home equipment (Dumbbells, Bands, etc.).
+- **Optional Body Fat & Estimation**: Body fat input is now optional; if omitted, the system uses BMI and Body Type to estimate TDEE with professional accuracy.
+- **Transparent Calorie Science**: Final plan tips now display the actual BMR and TDEE calculations used to generate the plan.
+- **Enhanced Step UX**: Improved the onboarding flow with better labels and clear equipment selection.
+
+## [2.16.0] - 2026-04-21
+### Added
+- **Hyper-Personalized Onboarding**: Deep refactoring of the training, nutrition, and lifestyle generators. Every user choice (health, motivation, goals, equipment) now significantly impacts the plan logic.
+- **Dynamic Training Splits**: Added support for 2-day Full Body splits up to 6-day PPL (Push/Pull/Legs) splits.
+- **Location-Aware Training**: Specific exercise pools for Gym, Home, Outdoor/Park, and Mixed environments.
+- **Dietary Deep-Dive**: Added "Pros & Cons" and "Strategy" sections for specific diets like Vegan and Keto in the nutrition plan.
+- **Safety Calorie Floors**: Implemented professional safe limits for daily calories (1400/1600 kcal) to prevent dangerously low intakes.
+- **Improved UI Step Navigation**: Added body fat slider and expanded health/advantage selections in the onboarding form.
 
 ## [2.15.0] - 2026-04-21
 ### Added
@@ -13,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Admin inbox sidebar now lists all trainers even without existing messages (greyed out), allowing admin to initiate conversations.
 - Message sorting is now stable (ascending by created_at) in the chat window.
+- Backend routing conflict resolved for `/support-initiate` endpoint.
 
 ## [2.14.9] - 2026-04-21
 ### Fixed

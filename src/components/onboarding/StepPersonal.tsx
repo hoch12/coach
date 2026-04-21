@@ -2,6 +2,7 @@ import { OnboardingData } from "@/types/onboarding";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Slider } from "@/components/ui/slider";
 
 interface Props {
   data: OnboardingData;
@@ -9,7 +10,7 @@ interface Props {
 }
 
 export function StepPersonal({ data, onChange }: Props) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const genderKeys = ["male", "female", "other"];
   const levelKeys = ["beginner", "intermediate", "advanced"];
 
@@ -36,6 +37,9 @@ export function StepPersonal({ data, onChange }: Props) {
     { id: "elbow-issues", label: t('elbowIssues', 'onboarding') },
     { id: "hip-issues", label: t('hipIssues', 'onboarding') },
     { id: "asthma", label: t('asthma', 'onboarding') },
+    { id: "heart-condition", label: t('heartCondition', 'onboarding') },
+    { id: "diabetes", label: t('diabetes', 'onboarding') },
+    { id: "limited-arm-mobility", label: t('limitedArmMobility', 'onboarding') },
   ];
 
   const toggleHealthIssue = (id: string) => {
@@ -112,6 +116,34 @@ export function StepPersonal({ data, onChange }: Props) {
             className="bg-secondary border-border"
           />
         </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex justify-between">
+          <Label htmlFor="bodyFat" className="flex items-center gap-2">
+            {t('bodyFat', 'onboarding')}
+            <span className="text-[10px] text-muted-foreground bg-secondary/80 px-1.5 py-0.5 rounded border border-border/50 uppercase font-bold tracking-tighter">
+              {t('optional', 'common')}
+            </span>
+          </Label>
+          <span className="text-sm text-primary font-bold bg-primary/10 px-2 py-0.5 rounded-full">
+            {data.bodyFat && data.bodyFat !== "0" ? `${data.bodyFat}%` : t('none', 'common')}
+          </span>
+        </div>
+        <Slider
+          id="bodyFat"
+          value={[parseInt(data.bodyFat) || 0]}
+          onValueChange={([v]) => onChange({ bodyFat: v === 0 ? "" : v.toString() })}
+          min={0}
+          max={50}
+          step={1}
+          className="py-4"
+        />
+        <p className="text-[10px] text-muted-foreground italic px-1">
+          {language === 'cs' 
+            ? "Pokud nevíte, nechte na 0. Odhadneme to podle vašeho typu postavy." 
+            : "Leave at 0 if unsure. We will estimate it based on your body type."}
+        </p>
       </div>
 
       <div className="space-y-4">

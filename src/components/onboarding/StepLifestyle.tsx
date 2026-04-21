@@ -36,17 +36,66 @@ export function StepLifestyle({ data, onChange }: Props) {
     <div className="space-y-10">
       {/* Training Frequency */}
       <div className="space-y-4">
-        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('trainingFrequency', 'onboarding')}</Label>
         {selectOptions(
           [
-            { id: "1-2 days", label: t('freq12', 'onboarding') },
-            { id: "3-4 days", label: t('freq34', 'onboarding') },
-            { id: "5-6 days", label: t('freq56', 'onboarding') },
+            { id: "1", label: t('freq1', 'onboarding') },
+            { id: "2", label: t('freq2', 'onboarding') },
+            { id: "3", label: t('freq3', 'onboarding') },
+            { id: "4", label: t('freq4', 'onboarding') },
+            { id: "5", label: t('freq5', 'onboarding') },
+            { id: "6", label: t('freq6', 'onboarding') },
+            { id: "7", label: t('freq7', 'onboarding') },
           ],
           data.trainingFrequency,
           (id) => onChange({ trainingFrequency: id })
         )}
       </div>
+
+      {/* Home Equipment - Only show if Home or Mixed is selected */}
+      {(data.workoutLocation === "home" || data.workoutLocation === "mixed") && (
+        <div className="space-y-4">
+          <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('homeEquipment', 'onboarding')}</Label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: "homeNone", key: "homeNone" },
+              { id: "homeDumbbells", key: "homeDumbbells" },
+              { id: "homeBands", key: "homeBands" },
+              { id: "homeBarbell", key: "homeBarbell" },
+              { id: "homePullup", key: "homePullup" },
+              { id: "homeKettlebell", key: "homeKettlebell" },
+              { id: "homeBench", key: "homeBench" },
+            ].map((item) => {
+              const isSelected = data.homeEquipment.includes(item.id);
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    let next;
+                    if (item.id === "homeNone") {
+                      next = ["homeNone"];
+                    } else {
+                      next = data.homeEquipment.filter(i => i !== "homeNone");
+                      if (isSelected) {
+                        next = next.filter(i => i !== item.id);
+                      } else {
+                        next.push(item.id);
+                      }
+                    }
+                    if (next.length === 0) next = ["homeNone"];
+                    onChange({ homeEquipment: next });
+                  }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${isSelected
+                    ? "bg-primary/10 border-primary text-foreground"
+                    : "bg-secondary border-border text-secondary-foreground hover:border-primary/40"
+                    }`}
+                >
+                  {t(item.key, 'onboarding')}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Training Duration */}
       <div className="space-y-4">
@@ -60,6 +109,21 @@ export function StepLifestyle({ data, onChange }: Props) {
           ],
           data.trainingDuration,
           (id) => onChange({ trainingDuration: id })
+        )}
+      </div>
+
+      {/* Workout Location */}
+      <div className="space-y-4">
+        <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground/70">{t('workoutLocation', 'onboarding')}</Label>
+        {selectOptions(
+          [
+            { id: "gym", label: t('gym', 'onboarding') },
+            { id: "home", label: t('home', 'onboarding') },
+            { id: "outdoor", label: t('outdoor', 'onboarding') },
+            { id: "mixed", label: t('mixed', 'onboarding') },
+          ],
+          data.workoutLocation,
+          (id) => onChange({ workoutLocation: id })
         )}
       </div>
 

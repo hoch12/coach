@@ -128,12 +128,19 @@ function generateHabits(data: OnboardingData, lang: string): string[] {
     habits.push(isCs ? "Využijte své zkušenosti: soustřeďte se na progresivní přetížení spíše než na neustálé změny rutin" : "Leverage your experience: focus on progressive overload rather than changing routines constantly");
   }
 
-  // Universal
   habits.push(isCs ? "Zůstaňte hydratovaní – snažte se o 2-3 litry vody denně, v tréninkové dny více" : "Stay hydrated — aim for 2-3 liters of water daily, more on training days");
+
+  // Location based habits
+  if (data.workoutLocation === "outdoor") {
+    habits.push(isCs ? "Naplánujte si tréninky podle předpovědi počasí a mějte připravenou 'mokrou variantu' doma" : "Schedule workouts based on weather forecasts and have a 'rainy day' backup at home");
+    habits.push(isCs ? "Využijte čerstvého vzduchu pro prohloubení dýchání mezi sériemi" : "Utilize the fresh air to deepen your breathing between sets");
+  } else if (data.workoutLocation === "home") {
+    habits.push(isCs ? "Vytvořte si dedikovaný prostor pro cvičení – i malý kout pomůže mentálně přepnout do módu tréninku" : "Create a dedicated workout space — even a small corner helps mentally switch to 'training mode'");
+  }
 
   // Simple plan: limit habits
   if (planStyle === "simple") return habits.slice(0, 4);
-  if (planStyle === "structured") return habits;
+  if (planStyle === "structured" || data.proactivity === "high") return habits;
   return habits.slice(0, 6); // flexible
 }
 
@@ -275,6 +282,12 @@ function generateMindsetShift(data: OnboardingData, lang: string): string {
     return isCs
       ? "Síla se buduje jedno opakování za druhým. Respektujte proces: zdokonalte svou formu, než se začnete honit za čísly. Každá těžká série učí váš nervový systém něco nového. Regenerace je místo, kde se síla skutečně buduje – trénujte tvrdě, odpočívejte ještě tvrději. Za šest měsíců budou váhy, které se dnes zdají nemožné, vaší rozcvičkou."
       : "Strength is built one rep at a time. Respect the process: perfect your form before chasing numbers. Every heavy set teaches your nervous system something new. Recovery is where strength is actually built — train hard, rest harder. In six months, weights that feel impossible today will be your warm-up.";
+  }
+
+  if (data.workoutLocation === "outdoor" || data.advantages.includes("outdoor-space")) {
+    return isCs 
+      ? "Pobyt venku je vaším největším spojencem. Kombinace pohybu a přirozeného světla drasticky zlepšuje cirkadiánní rytmus a hladinu energie. Vnímejte trénink jako formu svobody, ne jako povinnost v uzavřeném prostoru. Vaše tělo je navrženo k pohybu v přírodě – využijte toho k dosažení maximální mentální jasnosti."
+      : "Training outdoors is your greatest ally. The combination of movement and natural light drastically improves your circadian rhythm and energy levels. View your training as a form of freedom, not a chore in a closed space. Your body is designed to move in nature — leverage this for maximum mental clarity.";
   }
 
   return isCs
