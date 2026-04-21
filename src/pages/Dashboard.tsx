@@ -91,15 +91,15 @@ const Dashboard = () => {
   // Re-generate plan locally based on current language
   const plan = useMemo(() => {
     if (!basePlan || !profile) return basePlan;
-    if (language === 'en') return basePlan;
 
-    // If language is CS, we re-generate to ensure tips and descriptions are translated
+    // Always re-generate to ensure tips, exercises, and descriptions are translated 
+    // to the currently selected UI language.
     try {
       return {
         ...basePlan,
-        trainingSplit: generateTrainingSplit(profile, 'cs'),
-        nutrition: generateNutritionPlan(profile, 'cs'),
-        lifestyle: generateLifestylePlan(profile, 'cs'),
+        trainingSplit: generateTrainingSplit(profile, language),
+        nutrition: generateNutritionPlan(profile, language),
+        lifestyle: generateLifestylePlan(profile, language),
       };
     } catch (e) {
       console.error("Local plan re-generation failed:", e);
