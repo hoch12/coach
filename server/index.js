@@ -408,6 +408,31 @@ app.post('/api/support/:id/reply', authenticateToken, async (req, res) => {
     res.json({ success: true, id: result.rows[0].id });
 });
 
+// Admin can initiate a conversation with any user (trainer or client)
+// IMPORTANT: This must be defined BEFORE /:id/reply to avoid Express matching "initiate" as :id
+app.post('/api/admin/support-initiate', authenticateToken, isAdmin, async (req, res) => {
+    const { targetUserId, message } = req.body;
+    if (!targetUserId || !message) return res.status(400).json({ error: 'targetUserId and message are required' });
+
+    try {
+        const userResult = await db.query('SELECT id, role FROM users WHERE id = $1', [targetUserId]);
+        if (userResult.rowCount === 0) return res.status(404).json({ error: 'Target user not found' });
+
+        const targetUser = userResult.rows[0];
+        // trainer_id stays null — admin is the sender, conversation is tracked via user_id = targetUser.id
+        const result = await db.query(`
+            INSERT INTO support_tickets (user_id, trainer_id, message, sender_id, status)
+            VALUES ($1, $2, $3, $4, 'open')
+            RETURNING id
+        `, [targetUser.id, null, message, req.user.id]);
+
+        res.json({ success: true, id: result.rows[0].id });
+    } catch (e) {
+        console.error('[Admin initiate chat] Error:', e.message);
+        res.status(500).json({ error: 'Failed to initiate conversation' });
+    }
+});
+
 app.post('/api/admin/support/:id/reply', authenticateToken, isAdmin, async (req, res) => {
     const { reply } = req.body;
     const ticketId = req.params.id;
@@ -428,31 +453,6 @@ app.post('/api/admin/support/:id/reply', authenticateToken, isAdmin, async (req,
     res.json({ success: true, id: result.rows[0].id });
 });
 
-// Admin can initiate a conversation with a user (e.g., a trainer)
-app.post('/api/admin/support/initiate', authenticateToken, isAdmin, async (req, res) => {
-    const { targetUserId, message } = req.body;
-    if (!targetUserId || !message) return res.status(400).json({ error: 'targetUserId and message are required' });
-
-    try {
-        // Check if target user exists
-        const userResult = await db.query('SELECT id, role FROM users WHERE id = $1', [targetUserId]);
-        if (userResult.rowCount === 0) return res.status(404).json({ error: 'Target user not found' });
-
-        const targetUser = userResult.rows[0];
-        const trainerId = targetUser.role === 'trainer' ? null : null; // Admin talking to user, trainer_id is null
-
-        const result = await db.query(`
-            INSERT INTO support_tickets (user_id, trainer_id, message, sender_id, status)
-            VALUES ($1, $2, $3, $4, 'open')
-            RETURNING id
-        `, [targetUser.id, trainerId, message, req.user.id]);
-
-        res.json({ success: true, id: result.rows[0].id });
-    } catch (e) {
-        console.error('[Admin initiate chat] Error:', e.message);
-        res.status(500).json({ error: 'Failed to initiate conversation' });
-    }
-});
 
 app.get('/api/bookings', authenticateToken, async (req, res) => {
     let result;

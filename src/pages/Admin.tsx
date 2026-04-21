@@ -81,6 +81,8 @@ const AdminPanel = () => {
             fetchTrainers();
         } else if (activeTab === "messages") {
             fetchTickets();
+            fetchUsers();
+            fetchTrainers();
         }
     }, [token, activeTab]);
 
@@ -161,7 +163,7 @@ const AdminPanel = () => {
     const handleInitiateTrainerChat = async (trainer: AdminUser) => {
         if (!replyText.trim()) return;
         try {
-            const res = await fetch(getApiUrl("/api/admin/support/initiate"), {
+            const res = await fetch(getApiUrl("/api/admin/support-initiate"), {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -191,15 +193,51 @@ const AdminPanel = () => {
     const openTrainerChat = (trainer: AdminUser) => {
         setSelectedTrainerProfile(null);
         setActiveTab("messages");
-        // After tickets load, find or set the trainer's thread
         const latestTrainerTicket = tickets
             .filter(t => t.user_id === trainer.id)
             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
         if (latestTrainerTicket) {
             setReplyingTo(latestTrainerTicket.id);
         } else {
-            // No messages yet — set a special "pending" state so admin can initiate
-            setReplyingTo(-trainer.id); // negative ID signals new thread for this trainer
+            setReplyingTo(-trainer.id);
+        }
+    };
+
+    // Also allow admin to initiate chat with a client
+    const openUserChat = (u: AdminUser) => {
+        setActiveTab("messages");
+        const latestTicket = tickets
+            .filter(t => t.user_id === u.id)
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        if (latestTicket) {
+            setReplyingTo(latestTicket.id);
+        } else {
+            setReplyingTo(-u.id);
+        }
+    };
+
+    // Generic initiate chat for any user (trainer or client)
+    const handleInitiateChat = async (u: AdminUser) => {
+        if (!replyText.trim()) return;
+        try {
+            const res = await fetch(getApiUrl("/api/admin/support-initiate"), {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ targetUserId: u.id, message: replyText })
+            });
+            if (res.ok) {
+                toast.success("Message sent to " + u.username);
+                setReplyText("");
+                fetchTickets();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Failed to send message");
+            }
+        } catch (e) {
+            toast.error("Network error");
         }
     };
 
@@ -630,22 +668,24 @@ const AdminPanel = () => {
                                 <CardDescription className="text-[10px]">Recent communications</CardDescription>
                             </CardHeader>
                             <div className="flex-1 overflow-y-auto no-scrollbar">
-                                {/* Trainers with no existing thread — can initiate */}
-                                {trainers.filter(tr => !tickets.some(t => t.user_id === tr.id)).map(tr => (
+                                {/* Users (trainers + clients) with no existing thread — admin can initiate */}
+                                {[...trainers, ...users.filter(u => u.role === 'user')]
+                                    .filter(u => !tickets.some(t => t.user_id === u.id))
+                                    .map(u => (
                                     <button
-                                        key={`new-${tr.id}`}
-                                        onClick={() => setReplyingTo(-tr.id)}
-                                        className={`w-full p-4 flex items-center gap-3 border-b border-border/10 hover:bg-accent/5 transition-colors text-left group opacity-60 hover:opacity-100 ${replyingTo === -tr.id ? 'bg-accent/10 border-r-2 border-r-accent opacity-100' : ''}`}
+                                        key={`new-${u.id}`}
+                                        onClick={() => setReplyingTo(-u.id)}
+                                        className={`w-full p-4 flex items-center gap-3 border-b border-border/10 hover:bg-accent/5 transition-colors text-left group opacity-60 hover:opacity-100 ${replyingTo === -u.id ? 'bg-accent/10 border-r-2 border-r-accent opacity-100' : ''}`}
                                     >
                                         <div className="h-10 w-10 rounded-xl bg-accent/10 flex items-center justify-center font-bold text-xs shadow-inner text-accent">
-                                            {tr.username[0].toUpperCase()}
+                                            {u.username[0].toUpperCase()}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-0.5">
-                                                <span className="font-bold text-sm">{tr.username}</span>
-                                                <Badge variant="hero" className="text-[7px] px-1 py-0 h-3 leading-none uppercase font-black">Trainer</Badge>
+                                                <span className="font-bold text-sm">{u.username}</span>
+                                                <Badge variant={u.role === 'trainer' ? 'hero' : 'secondary'} className="text-[7px] px-1 py-0 h-3 leading-none uppercase font-black">{u.role === 'trainer' ? 'Trainer' : 'Client'}</Badge>
                                             </div>
-                                            <p className="text-[10px] text-muted-foreground italic">No messages yet — click to start</p>
+                                            <p className="text-[10px] text-muted-foreground italic">No messages yet - click to start</p>
                                         </div>
                                     </button>
                                 ))}
@@ -771,8 +811,9 @@ const AdminPanel = () => {
                                                     if (e.key === 'Enter') {
                                                         if (replyingTo > 0) handleReply(replyingTo);
                                                         else {
-                                                            const trainer = trainers.find(tr => tr.id === -replyingTo);
-                                                            if (trainer) handleInitiateTrainerChat(trainer);
+                                                            const allUsers = [...trainers, ...users];
+                                                            const target = allUsers.find(u => u.id === -replyingTo);
+                                                            if (target) handleInitiateChat(target);
                                                         }
                                                     }
                                                 }}
@@ -781,8 +822,9 @@ const AdminPanel = () => {
                                                 onClick={() => {
                                                     if (replyingTo > 0) handleReply(replyingTo);
                                                     else {
-                                                        const trainer = trainers.find(tr => tr.id === -replyingTo);
-                                                        if (trainer) handleInitiateTrainerChat(trainer);
+                                                        const allUsers = [...trainers, ...users];
+                                                        const target = allUsers.find(u => u.id === -replyingTo);
+                                                        if (target) handleInitiateChat(target);
                                                     }
                                                 }}
                                                 className="absolute right-1 top-1 h-10 w-10 p-0 rounded-lg hover:rotate-12 transition-all active:scale-95"
